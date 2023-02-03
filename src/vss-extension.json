@@ -1,0 +1,86 @@
+{
+    "manifestVersion": 1.0,    
+    "id": "mariusz-sycz-linked-tasks-automation",    
+    "version": "0.1.5",
+    "name": "Linked Tasks Automation",
+    "description": "Add linked tasks from pre-defined templates with a single click.",
+    "public": false,
+    "publisher": "mariusz-sycz",
+    "repository": {
+        "type": "git",
+        "uri": "https://github.com/mariusz-sycz/Linked-Tasks-Automation"
+    }, 
+    "baseUri": "https://localhost:5501",
+    "icons": {
+        "default": "img/one-click.png"
+    },
+    "screenshots": [
+        {
+            "path": "img/screen01.png"
+        },
+        {
+            "path": "img/screen02.png"
+        },
+        {
+            "path": "img/screen03.png"
+        }
+    ],
+    "tags": [
+        "Tasks"
+    ],
+    "categories": [
+        "Azure Boards"
+    ],
+    "content": {
+        "details": {
+            "path": "overview.md"
+        }
+    },
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],
+    "scopes": [
+        "vso.work",
+        "vso.work_write"
+    ],
+    "files": [
+        {
+            "path": "img",
+            "addressable": true
+        },
+        {
+            "path": "toolbar.html",
+            "addressable": true
+        },
+        {
+            "path": "scripts/app.js",
+            "addressable": true
+        },
+        {
+            "path": "lib/VSS.SDK.min.js",
+            "addressable": true
+        }
+    ],
+    "contributions": [
+        {
+            "id": "create-linked-tasks-button",
+            "type": "ms.vss-web.action",
+            "description": "Create linked tasks",
+            "targets": [
+                "ms.vss-work-web.work-item-toolbar-menu", 
+                "ms.vss-work-web.backlog-item-menu",
+                "ms.vss-work-web.work-item-context-menu"
+            ],
+            "properties": {
+                "text": " Create linked tasks",
+                "title": "Create linked tasks",
+                "toolbarText": "Create linked tasks",                
+                "icon": "img/one-click1.png",
+                "uri": "toolbar.html",
+                "registeredObjectId": "create-linked-tasks-button"
+            }
+        }
+    ]
+}
