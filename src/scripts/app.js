@@ -101,36 +101,38 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                                         console.log(err); // Error: "It broke"
                                     });
                                 } 
-                                else if(linkToItem === 'ToAllJustCreatedTAsks'){
+                                else if(linkToItem === 'ToAllJustCreatedTasks'){
                                     justCreatedTasks.forEach(function (item) {    
                                         if (response.url !== item.url) {
                                             linkImtes(witClient, response.id, "System.LinkTypes.Related", item.url)                                            
                                         }
                                     });
                                 }
-                                else if(linkToItem === 'PreviouslyCreatedTasks'){
+                                else if(linkToItem === 'PreviouslyCreatedTask'){
                                     if(justCreatedTasks.length > 1){
                                         var previouslyCreatedTask = justCreatedTasks[justCreatedTasks.length-2];
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'TwoPreviouslyCreatedTasks'){
+                                else if(linkToItem === 'PreviouslyJustCreatedTask'){
                                     if(justCreatedTasks.length > 1){
                                         var previouslyCreatedTask = justCreatedTasks[justCreatedTasks.length-2];
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
+                                }
+                                else if(linkToItem === 'SecondPreviouslyJustCreatedTask'){
                                     if(justCreatedTasks.length > 2){
                                         var previouslyCreatedTask = justCreatedTasks[justCreatedTasks.length-3];
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'FirstJustCreatedTasks'){
+                                else if(linkToItem === 'FirstJustCreatedTask'){
                                     if(justCreatedTasks.length > 1){
                                         var previouslyCreatedTask = justCreatedTasks[0];
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'SecondJustCreatedTasks'){
+                                else if(linkToItem === 'SecondJustCreatedTask'){
                                     if(justCreatedTasks.length > 2){
                                         var previouslyCreatedTask = justCreatedTasks[1];
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
