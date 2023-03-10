@@ -1,14 +1,14 @@
 {
     "manifestVersion": 1.0,    
-    "id": "mariusz-sycz-linked-tasks-automation",    
-    "version": "0.1.5",
+    "id": "MariuszSycz-linked-tasks-automation",    
+    "version": "0.1.17",
     "name": "Linked Tasks Automation",
     "description": "Add linked tasks from pre-defined templates with a single click.",
     "public": false,
-    "publisher": "mariusz-sycz",
+    "publisher": "MariuszSycz",
     "repository": {
         "type": "git",
-        "uri": "https://github.com/mariusz-sycz/Linked-Tasks-Automation"
+        "uri": "https://github.com/MariuszSycz/Linked-Tasks-Automation"
     }, 
     "baseUri": "https://localhost:5501",
     "icons": {
@@ -70,14 +70,13 @@
             "description": "Create linked tasks",
             "targets": [
                 "ms.vss-work-web.work-item-toolbar-menu", 
-                "ms.vss-work-web.backlog-item-menu",
                 "ms.vss-work-web.work-item-context-menu"
             ],
             "properties": {
                 "text": " Create linked tasks",
                 "title": "Create linked tasks",
                 "toolbarText": "Create linked tasks",                
-                "icon": "img/one-click1.png",
+                "icon": "img/one-click16.png",
                 "uri": "toolbar.html",
                 "registeredObjectId": "create-linked-tasks-button"
             }
