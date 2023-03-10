@@ -1,16 +1,15 @@
 {
     "manifestVersion": 1.0,    
     "id": "MariuszSycz-linked-tasks-automation",    
-    "version": "0.1.17",
+    "version": "1.1.5",
     "name": "Linked Tasks Automation",
     "description": "Add linked tasks from pre-defined templates with a single click.",
-    "public": false,
+    "public": true,
     "publisher": "MariuszSycz",
     "repository": {
         "type": "git",
-        "uri": "https://github.com/MariuszSycz/Linked-Tasks-Automation"
+        "uri": "https://github.com/Mariusz-Sycz/Linked-Tasks-Automation"
     }, 
-    "baseUri": "https://localhost:5501",
     "icons": {
         "default": "img/one-click.png"
     },
