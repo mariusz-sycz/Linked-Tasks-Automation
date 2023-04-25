@@ -22,7 +22,7 @@ Complex: put a minified (single line) JSON string into the child template's desc
         "System.Tags" : ["Blah", "ClickMe"],
         "System.WorkItemType": "Product Backlog Item"
     },
-	"linkTo":["ToAllOtherChilds", "ToAllJustCreatedTasks", "PreviouslyJustCreatedTask", "SecondPreviouslyJustCreatedTask", "FirstJustCreatedTask", "SecondJustCreatedTask"]
+    "linkTo":["ToAllOtherChilds", "ToAllJustCreatedTasks", "PreviouslyJustCreatedTask", "SecondPreviouslyJustCreatedTask", "FirstJustCreatedTask", "SecondJustCreatedTask"]
 }
 ```
 
