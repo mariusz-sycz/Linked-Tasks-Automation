@@ -3,11 +3,7 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
 
         var ctx = null;
 
-        function AddTasks(service){
-            var workItemId;
-            service.getId().then(function(id){
-                workItemId = id;
-            });
+        function AddTasks(workItemId){
             var witClient = _WorkItemRestClient.getClient();
             var workClient = workRestClient.getClient();
 
@@ -43,7 +39,7 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                                             var templates = response.sort(SortTemplates);
                                             var chain = Q.when();
                                             templates.forEach(function (template) {
-                                                chain = chain.then(createChildFromTemplate(witClient, service, currentWorkItem, template, teamSettings, justCreatedTasks));
+                                                chain = chain.then(createChildFromTemplate(witClient, workItemId, currentWorkItem, template, teamSettings, justCreatedTasks));
                                             });
                                             return chain;
                                         });
@@ -52,20 +48,30 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                 })
         }
 
-        function createChildFromTemplate(witClient, service, currentWorkItem, template, teamSettings, justCreatedTasks) {
+        function createChildFromTemplate(witClient, workItemId, currentWorkItem, template, teamSettings, justCreatedTasks) {
             return function () {
                 return getTemplate(template.id).then(function (taskTemplate) {
                     // Create child
                     if (IsValidTemplateWIT(currentWorkItem, taskTemplate)) {
                         if (IsValidTemplateTitle(currentWorkItem, taskTemplate)) {
-                            createWorkItem(service, currentWorkItem, taskTemplate, teamSettings, justCreatedTasks)
+                            createWorkItem(workItemId, currentWorkItem, taskTemplate, teamSettings, justCreatedTasks)
                         }
                     }
                 });
             };
         }
 
-        function createWorkItem(service, currentWorkItem, taskTemplate, teamSettings, justCreatedTasks) {
+        function getRelatedWorkItems(witClient, workItemId, type){
+            witClient.getWorkItem(workItemId, null, null, workItemExpand).then(function (result) {
+                if(result != null && result.relations != null){
+                    const relatedItems = result.relations.filter((el) => el.rel === type);
+                    return relatedItems;
+                }
+            });
+            return null;
+        }
+
+        function createWorkItem(workItemId, currentWorkItem, taskTemplate, teamSettings, justCreatedTasks) {
 
             var witClient = _WorkItemRestClient.getClient();
 
@@ -73,32 +79,19 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
 
             witClient.createWorkItem(newWorkItem, VSS.getWebContext().project.name, taskTemplate.workItemTypeName)
                 .then(function (response) {
-                    justCreatedTasks.push(response);
-                    service.addWorkItemRelations([
-                        {
-                            rel: "System.LinkTypes.Hierarchy-Forward",
-                            url: response.url,
-                        }]);
-                    service.beginSaveWorkItem(function (response2) {
-                        // saved
-                    }, function (error) {
-                        ShowDialog(" Error beginSaveWorkItem: " + error);
-                        WriteError("createWorkItem " + error);
-                    });
+                    justCreatedTasks.push(response);                    
+                    linkImtes(witClient, workItemId, "System.LinkTypes.Hierarchy-Forward", response.url)    
+                    
                     var jsonFilters = extractJSON(taskTemplate.description)[0];
                     if (IsJsonString(JSON.stringify(jsonFilters))) {
                         if(jsonFilters.linkTo !== undefined && jsonFilters.linkTo.length > 0){
                             jsonFilters.linkTo.forEach(function(linkToItem){
-                                if(linkToItem === 'ToAllOtherChilds'){
-                                    service.getWorkItemRelations().then(function (result) {
-                                        result.forEach(function (item) {    
-                                            if (response.url !== item.url) {
-                                                linkImtes(witClient, response.id, "System.LinkTypes.Related", item.url)                                            
-                                            }
-                                        });
-                                    // "Stuff worked!"
-                                    }, function (err) {
-                                        console.log(err); // Error: "It broke"
+                                if(linkToItem === 'ToAllOtherChilds'){                                    
+                                    let workItemExpand = 1; // 1- Relations                                    
+                                    getRelatedWorkItems(witClient,workItemId,'System.LinkTypes.Hierarchy-Forward').forEach(function (item) {    
+                                        if (response.url !== item.url) {
+                                            linkImtes(witClient, response.id, "System.LinkTypes.Related", item.url)                                            
+                                        }
                                     });
                                 } 
                                 else if(linkToItem === 'ToAllJustCreatedTasks'){
@@ -557,18 +550,20 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
 
             create: function (context) {
                 Log('init v0.0.1');
+                console.log(context);
 
                 ctx = VSS.getWebContext();
-
-                getWorkItemFormService().then(function (service) {
-                    service.hasActiveWorkItem()
-                        .then(function success(response) {
-                            if (response == true) {
-                                //Task form
-                                AddTasks(service);
-                            }
-                        });
-                })
+                if (context.workItemIds && context.workItemIds.length > 0) {
+                    context.workItemIds.forEach(function (workItemId) {
+                        AddTasks(workItemId);
+                    });
+                }
+                else if (context.id) {
+                    AddTasks(context.id);
+                }
+                else if (context.workItemId) {
+                    AddTasks(context.workItemId);
+                }   
             },
         }
 
