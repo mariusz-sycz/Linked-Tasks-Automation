@@ -61,14 +61,23 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
             };
         }
 
-        function getRelatedWorkItems(witClient, workItemId, type){
+        function getRelatedWorkItems(witClient, workItemId, relationTypeToFilter, itemToLinkTo, relationTypeToLinkAs){
+            console.log("Getting all '"+ relationTypeToFilter +"' related tasks for: " + workItemId);                                   
+            let workItemExpand = 1; // 1- Relations     
             witClient.getWorkItem(workItemId, null, null, workItemExpand).then(function (result) {
                 if(result != null && result.relations != null){
-                    const relatedItems = result.relations.filter((el) => el.rel === type);
-                    return relatedItems;
+                    const relatedItems = result.relations.filter((el) => el.rel === relationTypeToFilter);
+                    console.log("Found " + relatedItems.length + " off all " + result.relations.length + " relations:");
+                    console.log(relatedItems);
+                    console.log(result.relations);
+                    relatedItems.forEach(function(item){
+                        console.log('Linking to:' + item.url);   
+                        if (itemToLinkTo.url !== item.url) {
+                            linkImtes(witClient, itemToLinkTo.id, relationTypeToLinkAs, item.url)                                            
+                        }
+                    });
                 }
             });
-            return null;
         }
 
         function createWorkItem(workItemId, currentWorkItem, taskTemplate, teamSettings, justCreatedTasks) {
@@ -79,55 +88,75 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
 
             witClient.createWorkItem(newWorkItem, VSS.getWebContext().project.name, taskTemplate.workItemTypeName)
                 .then(function (response) {
-                    justCreatedTasks.push(response);                    
+                    console.log('Request to create work item request:');
+                    console.log(newWorkItem);
+                    console.log('Respond with result:');
+                    console.log(response);
+                    justCreatedTasks.push(response); 
+
+                    console.log('Proceed with created task: ' + response.id);
+                    console.log('Linking to Parent:');
                     linkImtes(witClient, workItemId, "System.LinkTypes.Hierarchy-Forward", response.url)    
                     
                     var jsonFilters = extractJSON(taskTemplate.description)[0];
                     if (IsJsonString(JSON.stringify(jsonFilters))) {
                         if(jsonFilters.linkTo !== undefined && jsonFilters.linkTo.length > 0){
-                            jsonFilters.linkTo.forEach(function(linkToItem){
-                                if(linkToItem === 'ToAllOtherChilds'){                                    
-                                    let workItemExpand = 1; // 1- Relations                                    
-                                    getRelatedWorkItems(witClient,workItemId,'System.LinkTypes.Hierarchy-Forward').forEach(function (item) {    
-                                        if (response.url !== item.url) {
-                                            linkImtes(witClient, response.id, "System.LinkTypes.Related", item.url)                                            
-                                        }
-                                    });
+                            console.log('Task should be linked to:');
+                            console.log(jsonFilters.linkTo);
+                            jsonFilters.linkTo.forEach(function(linkTo){
+                                console.log('Start linking for: '+ linkTo);
+                                let linkToItem = linkTo.toUpperCase();
+                                if(linkToItem == 'ToAllOtherChilds'.toUpperCase()){           
+                                    console.log('Linking to ToAllOtherChilds');                                 
+                                    getRelatedWorkItems(witClient,workItemId,'System.LinkTypes.Hierarchy-Forward', response, 'System.LinkTypes.Related');
                                 } 
-                                else if(linkToItem === 'ToAllJustCreatedTasks'){
-                                    justCreatedTasks.forEach(function (item) {    
+                                else if(linkToItem == 'ToAllJustCreatedTasks'.toUpperCase()){ 
+                                    console.log('Linking to ToAllJustCreatedTasks:'); 
+                                    console.log(justCreatedTasks); 
+                                    justCreatedTasks.forEach(function (item) { 
+                                        console.log('Linking to:' + item.url);    
                                         if (response.url !== item.url) {
                                             linkImtes(witClient, response.id, "System.LinkTypes.Related", item.url)                                            
                                         }
                                     });
                                 }
-                                else if(linkToItem === 'PreviouslyCreatedTask'){
+                                else if(linkToItem == 'PreviouslyCreatedTask'.toUpperCase()){
+                                    console.log('Linking to PreviouslyCreatedTask'); 
                                     if(justCreatedTasks.length > 1){
                                         var previouslyCreatedTask = justCreatedTasks[justCreatedTasks.length-2];
+                                        console.log('Linking to:' + previouslyCreatedTask.url);
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'PreviouslyJustCreatedTask'){
+                                else if(linkToItem == 'PreviouslyJustCreatedTask'.toUpperCase()){
+                                    console.log('Linking to PreviouslyJustCreatedTask'); 
                                     if(justCreatedTasks.length > 1){
                                         var previouslyCreatedTask = justCreatedTasks[justCreatedTasks.length-2];
+                                        console.log('Linking to:' + previouslyCreatedTask.url);
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'SecondPreviouslyJustCreatedTask'){
+                                else if(linkToItem == 'SecondPreviouslyJustCreatedTask'.toUpperCase()){
+                                    console.log('Linking to SecondPreviouslyJustCreatedTask'); 
                                     if(justCreatedTasks.length > 2){
                                         var previouslyCreatedTask = justCreatedTasks[justCreatedTasks.length-3];
+                                        console.log('Linking to:' + previouslyCreatedTask.url);
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'FirstJustCreatedTask'){
+                                else if(linkToItem == 'FirstJustCreatedTask'.toUpperCase()){
+                                    console.log('Linking to FirstJustCreatedTask'); 
                                     if(justCreatedTasks.length > 1){
                                         var previouslyCreatedTask = justCreatedTasks[0];
+                                        console.log('Linking to:' + previouslyCreatedTask.url);
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }
-                                else if(linkToItem === 'SecondJustCreatedTask'){
+                                else if(linkToItem == 'SecondJustCreatedTask'.toUpperCase()){
+                                    console.log('Linking to SecondJustCreatedTask'); 
                                     if(justCreatedTasks.length > 2){
                                         var previouslyCreatedTask = justCreatedTasks[1];
+                                        console.log('Linking to:' + previouslyCreatedTask.url);
                                         linkImtes(witClient, response.id, "System.LinkTypes.Related", previouslyCreatedTask.url)    
                                     }
                                 }                                    
@@ -135,8 +164,11 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                         }
                     } 
                 }, function (error) {
+                    console.log('Request to create work item request:');
+                    console.log(newWorkItem);
+                    console.log('Respond with ERROR result:');
+                    console.log(error);
                         ShowDialog(" Error createWorkItem: " + JSON.stringify(error));
-                    WriteError("createWorkItem " + error);
                 });
         }
 
@@ -153,13 +185,18 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                 }
             }];
             console.log('Send doc:');
-            console.log(document);
             witClient.updateWorkItem(document, newWorkItemId)
                 .then(function (response) {
+                    console.log('Request to update taskId:' + newWorkItemId + ' with document: ');
+                    console.log(document);
+                    console.log('Respond with result:');
                     console.log(response);
             }, function (error) {
+                console.log('Request to update taskId:' + newWorkItemId + ' with document: ');
+                console.log(document);
+                console.log('Respond with ERROR result:');
+                console.log(error);
                 ShowDialog(" Error updateWorkItem: " + JSON.stringify(error));
-                WriteError("createWorkItem " + error);
             });
         }
 
