@@ -168,6 +168,11 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                     console.log(newWorkItem);
                     console.log('Respond with ERROR result:');
                     console.log(error);
+                    if(IsJsonString(error))
+                    {
+                        var errorObj = extractJSON(error);
+                        console.log(errorObj);
+                    }
                         ShowDialog(" Error createWorkItem: " + JSON.stringify(error));
                 });
         }
