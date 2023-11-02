@@ -1,6 +1,6 @@
 ## Linked-Tasks-Automation ##
 
-<a href="https://marketplace.visualstudio.com/items?itemName=ruifig.vsts-work-item-one-click-child-links" target="_blank">1-Click Child-Links</a> is an Azure DevOps extension for creating multiple work items as children via single click, where each work item is based on a single pre-defined template.
+<a href="https://marketplace.visualstudio.com/items?itemName=SyczMariusz.vsts-work-item-linked-tasks-automation" target="_blank">Linked-Tasks-Automation</a> is an Azure DevOps extension for creating multiple work items as children via single click, where each work item is based on a single pre-defined template.
 
 Azure DevOps offers team-specific work item templating as <a href="https://docs.microsoft.com/en-us/azure/devops/boards/backlogs/work-item-template?view=azure-devops&tabs=browser" target="_blank">core functionality</a> with which you can quickly apply pre-populated values for your team's commonly used fields per work item type.
 
