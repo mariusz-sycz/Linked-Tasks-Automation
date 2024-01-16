@@ -32,7 +32,7 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                                     getTemplates(childTypes)
                                         .then(function (response) {
                                             if (response.length == 0) {
-                                                ShowDialog('No ' + childTypes + ' templates found. Please add ' + childTypes + ' templates for the project team.');
+                                                console.log('No ' + childTypes + ' templates found. Please add ' + childTypes + ' templates for the project team.');
                                                 return;
                                             }
                                             // Create children alphabetically.
@@ -173,7 +173,6 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                         var errorObj = extractJSON(error);
                         console.log(errorObj);
                     }
-                        ShowDialog(" Error createWorkItem: " + JSON.stringify(error));
                 });
         }
 
@@ -201,7 +200,6 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                 console.log(document);
                 console.log('Respond with ERROR result:');
                 console.log(error);
-                ShowDialog(" Error updateWorkItem: " + JSON.stringify(error));
             });
         }
 
