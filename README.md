@@ -18,9 +18,13 @@ Complex: put a minified (single line) JSON string into the child template's desc
 {
     "applywhen": 
     {
-        "System.State": "Approved",
         "System.Tags" : ["Blah", "ClickMe"],
         "System.WorkItemType": "Product Backlog Item"
+    },
+	"notapplywhen": 
+    {
+        "System.State": "Approved",
+        "System.Tags" : ["DoNotCreateAutomatedTask"],
     },
     "linkTo":["ToAllOtherChilds", "ToAllJustCreatedTasks", "PreviouslyJustCreatedTask", "SecondPreviouslyJustCreatedTask", "FirstJustCreatedTask", "SecondJustCreatedTask"]
 }
