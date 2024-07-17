@@ -580,15 +580,15 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
         }
 
         function WriteTrace(msg) {
-            console.log('1-Click Child-Links: ' + msg);
+            console.log('linked-tasks-automation: ' + msg);
         }
 
         function WriteLog(msg) {
-            console.log('1-Click Child-Links: ' + msg);
+            console.log('linked-tasks-automation: ' + msg);
         }
 
         function WriteError(msg) {
-            console.error('1-Click Child-Links: ' + msg);
+            console.error('linked-tasks-automation: ' + msg);
         }
         
 
