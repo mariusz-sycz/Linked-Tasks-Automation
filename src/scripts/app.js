@@ -255,6 +255,24 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
             return workItem;
         }
 
+        function checkRules(rules, currentWorkItem) {
+            if (!Array.isArray(rules))
+                rules = new Array(rules);
+
+            var matchRule = rules.some(filters => {
+
+                var matchFilter = Object.keys(filters).every(function (prop) {
+
+                    var matchfield = matchField(prop, currentWorkItem, filters);
+                    WriteTrace(" - filter['" + prop + "'] : '" + filters[prop] + "' - wit['" + prop + "'] : '" + currentWorkItem[prop] + "' equal ? " + matchfield);
+                    return matchfield
+                });
+
+                return matchFilter;
+            });
+            return matchRule;
+        }
+
         function IsValidTemplateWIT(currentWorkItem, taskTemplate) {
 
             WriteTrace("template: '" + taskTemplate.name + "'");
@@ -276,28 +294,16 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                 //          "System.Tags" : ["Blah", "ClickMe"],
                 //          "System.WorkItemType": "Product Backlog Item"
                 //        }
-                //         ]
+                //         ],
+                //      "notapplywhen": []
                 //    }
 
                 WriteTrace("filter: '" + JSON.stringify(jsonFilters) + "'");
+                
+                var applyWhenResult = !jsonFilters.applywhen ? true : checkRules(jsonFilters.applywhen, currentWorkItem);
+                var notApplyWhenResult = !jsonFilters.notapplywhen ? false : checkRules(jsonFilters.notapplywhen, currentWorkItem);
 
-                var rules = jsonFilters.applywhen;
-                if (!Array.isArray(rules))
-                    rules = new Array(rules);
-
-                var matchRule = rules.some(filters => {
-
-                    var matchFilter = Object.keys(filters).every(function (prop) {
-
-                        var matchfield = matchField(prop, currentWorkItem, filters);
-                        WriteTrace(" - filter['" + prop + "'] : '" + filters[prop] + "' - wit['" + prop + "'] : '" + currentWorkItem[prop] + "' equal ? " + matchfield);
-                        return matchfield
-                    });
-
-                    return matchFilter;
-                });
-
-                return matchRule;
+                return applyWhenResult && !notApplyWhenResult;
 
 
             } else {
@@ -570,19 +576,19 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
         }
         
         function Log(msg) {
-            console.log('linked-tasks-automation: ' + msg);
+            console.log('linked-tasks-automation-test: ' + msg);
         }
 
         function WriteTrace(msg) {
-            console.log('1-Click Child-Links: ' + msg);
+            console.log('linked-tasks-automation-test: ' + msg);
         }
 
         function WriteLog(msg) {
-            console.log('1-Click Child-Links: ' + msg);
+            console.log('linked-tasks-automation-test: ' + msg);
         }
 
         function WriteError(msg) {
-            console.error('1-Click Child-Links: ' + msg);
+            console.error('linked-tasks-automation-test: ' + msg);
         }
         
 
@@ -595,6 +601,7 @@ define(["TFS/WorkItemTracking/Services", "TFS/WorkItemTracking/RestClient", "TFS
                 ctx = VSS.getWebContext();
                 if (context.workItemIds && context.workItemIds.length > 0) {
                     context.workItemIds.forEach(function (workItemId) {
+                        console.log('AddTasks for: ' + workItemId);
                         AddTasks(workItemId);
                     });
                 }

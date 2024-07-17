@@ -1,10 +1,11 @@
 {
     "manifestVersion": 1.0,    
-    "id": "vsts-work-item-linked-tasks-automation",    
-    "version": "1.1.15",
-    "name": "Linked Tasks Automation",
+    "id": "SyczMariusz-linked-tasks-automation-test",   
+    "baseUri": "https://localhost:5501", 
+    "version": "1.1.12",
+    "name": "Linked Tasks Automation Test",
     "description": "Add linked tasks from pre-defined templates with a single click.",
-    "public": true,
+    "public": false,
     "publisher": "SyczMariusz",
     "repository": {
         "type": "git",
@@ -64,20 +65,20 @@
     ],
     "contributions": [
         {
-            "id": "create-linked-tasks-button",
+            "id": "create-linked-tasks-button-test",
             "type": "ms.vss-web.action",
-            "description": "Create linked tasks",
+            "description": "Create linked tasks TEST",
             "targets": [
                 "ms.vss-work-web.work-item-toolbar-menu", 
                 "ms.vss-work-web.work-item-context-menu"
             ],
             "properties": {
-                "text": " Create linked tasks",
-                "title": "Create linked tasks",
-                "toolbarText": "Create linked tasks",                
+                "text": " Create linked tasks TEST",
+                "title": "Create linked tasks TEST",
+                "toolbarText": "Create linked tasks TEST",                
                 "icon": "img/one-click16.png",
                 "uri": "toolbar.html",
-                "registeredObjectId": "create-linked-tasks-button"
+                "registeredObjectId": "create-linked-tasks-button-test"
             }
         }
     ]
