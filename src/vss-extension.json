@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1.0,    
     "id": "vsts-work-item-linked-tasks-automation",    
-    "version": "1.1.15",
+    "version": "1.1.17",
     "name": "Linked Tasks Automation",
     "description": "Add linked tasks from pre-defined templates with a single click.",
     "public": true,
