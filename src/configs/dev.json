@@ -1,5 +1,5 @@
 {
-    "id": "vsts-work-item-linked-tasks-automation-test",
-    "name": "[TEST] Linked Tasks Automation",
+    "id": "vsts-work-item-linked-tasks-automation",
+    "name": "Linked Tasks Automation",
     "public": false
 }
