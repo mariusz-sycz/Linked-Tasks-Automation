@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@types/q": "^1.5.8",
     "grunt": "^1.0.4",
     "grunt-cli": "^1.2.0",
     "grunt-contrib-clean": "^1.0.0",
@@ -7,10 +8,11 @@
     "grunt-exec": "~0.4.7",
     "requirejs": "^2.2.0",
     "tfx-cli": "^0.8.1",
+    "typescript": "^5.4.5",
     "vss-web-extension-sdk": "^1.104.0"
   },
   "name": "vsts-work-item-linked-tasks-automation",
   "private": true,
-  "version": "0.10.1",
+  "version": "1.1.17",
   "scripts": {}
 }
