@@ -25,6 +25,11 @@
                 command: "tfx extension publish --service-url https://marketplace.visualstudio.com --manifests vss-extension.json --overrides-file configs/release.json --output-path ../dist",
                 stdout: true,
                 stderr: true
+            },
+            serve: {
+                command: "http-server . -S -C certs/cert.pem -K certs/key.pem -p 5501 -a localhost -c-1",
+                stdout: true,
+                stderr: true
             }
         },
         copy: {
@@ -52,6 +57,7 @@
     grunt.registerTask("package-release", ["exec:tsc", "exec:package_release"]);
     grunt.registerTask("publish-dev", ["package-dev", "exec:publish_dev"]);        
     grunt.registerTask("publish-release", ["package-release", "exec:publish_release"]);        
+    grunt.registerTask("serve", ["exec:tsc", "exec:serve"]);
     
     grunt.registerTask("default", ["package-dev"]);
 };

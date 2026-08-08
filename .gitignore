@@ -275,6 +275,9 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# Local dev server self-signed certificate
+src/certs/
+
 # Visual Studio 6 build log
 *.plg
 

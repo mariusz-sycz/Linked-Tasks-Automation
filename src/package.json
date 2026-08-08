@@ -6,7 +6,9 @@
     "grunt-contrib-clean": "^1.0.0",
     "grunt-contrib-copy": "~1.0.0",
     "grunt-exec": "~0.4.7",
+    "http-server": "^14.1.1",
     "requirejs": "^2.2.0",
+    "selfsigned": "^2.4.1",
     "tfx-cli": "^0.8.1",
     "typescript": "^5.4.5",
     "vss-web-extension-sdk": "^1.104.0"
@@ -14,5 +16,8 @@
   "name": "vsts-work-item-linked-tasks-automation",
   "private": true,
   "version": "1.1.17",
-  "scripts": {}
+  "scripts": {
+    "generate-cert": "node generate-cert.js",
+    "serve": "http-server . -S -C certs/cert.pem -K certs/key.pem -p 5501 -a localhost -c-1"
+  }
 }
