@@ -1,6 +1,11 @@
 ﻿module.exports = function (grunt) {
     grunt.initConfig({
         exec: {
+            tsc: {
+                command: "tsc -p tsconfig.json",
+                stdout: true,
+                stderr: true
+            },
             package_dev: {
                 command: "tfx extension create --rev-version --manifests vss-extension.json --overrides-file configs/dev.json --output-path ../dist" ,
                 stdout: true,
@@ -43,8 +48,8 @@
     grunt.loadNpmTasks("grunt-contrib-copy");
     grunt.loadNpmTasks('grunt-contrib-clean');
 
-    grunt.registerTask("package-dev", ["exec:package_dev"]);
-    grunt.registerTask("package-release", ["exec:package_release"]);
+    grunt.registerTask("package-dev", ["exec:tsc", "exec:package_dev"]);
+    grunt.registerTask("package-release", ["exec:tsc", "exec:package_release"]);
     grunt.registerTask("publish-dev", ["package-dev", "exec:publish_dev"]);        
     grunt.registerTask("publish-release", ["package-release", "exec:publish_release"]);        
     
