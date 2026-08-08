@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "amd",
+    "strict": true,
+    "types": [],
+    "skipLibCheck": true
+  },
+  "include": ["scripts/**/*.ts"]
+}
