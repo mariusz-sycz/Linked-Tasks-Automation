@@ -278,6 +278,12 @@ node_modules/
 # Local dev server self-signed certificate
 src/certs/
 
+# Packaged extension output
+dist/
+
+# JetBrains IDEs (Rider, WebStorm, etc.)
+.idea/
+
 # Visual Studio 6 build log
 *.plg
 
