@@ -18,6 +18,7 @@
   "version": "1.1.17",
   "scripts": {
     "generate-cert": "node generate-cert.js",
-    "serve": "http-server . -S -C certs/cert.pem -K certs/key.pem -p 5501 -a localhost -c-1"
+    "build": "grunt build",
+    "serve": "grunt serve"
   }
 }

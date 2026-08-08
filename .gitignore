@@ -281,6 +281,9 @@ src/certs/
 # Packaged extension output
 dist/
 
+# Staged/compiled runtime files (toolbar.html, img, lib, scripts/app.js)
+build/
+
 # JetBrains IDEs (Rider, WebStorm, etc.)
 .idea/
 

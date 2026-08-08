@@ -4,7 +4,8 @@
     "module": "amd",
     "strict": true,
     "types": [],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "outDir": "../build/scripts"
   },
   "include": ["scripts/**/*.ts"]
 }
