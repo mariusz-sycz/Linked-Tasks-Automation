@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>High-Level Design — Speed Up Task Creation</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+h3 { font-size:14px; margin-top:20px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:110px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+pre.ascii { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 16px; overflow-x:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px; line-height:1.4; }
+.toc { font-size:13px; margin:10px 0 4px; color:var(--dim); }
+.toc a { color:var(--dim); }
+ul.tight li { margin-bottom:4px; }
+.reject { border-left:3px solid var(--crit); padding-left:10px; }
+.accept { border-left:3px solid var(--ok); padding-left:10px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <span class="here">Design</span>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="high-level-design.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+
+<header>
+  <span class="badge">High-Level Design</span>
+  <h1>No-New-Surface Speed-Up, Keepalive Popup-Close Fix, TTL Cache, Modal Progress</h1>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>7</b><span>components</span></div>
+  <div class="tile"><b>5</b><span>decisions (ADRs)</span></div>
+  <div class="tile"><b>Point-fix</b><span>architecture style</span></div>
+  <div class="tile"><b>0</b><span>manifest changes</span></div>
+</div>
+
+<section class="tldr">
+  <div class="card">
+    <h2 style="margin-top:0">TL;DR</h2>
+    <p>Keep the extension's single existing <code>ms.vss-web.action</code> contribution &mdash; no Hub, no observer, no form-page tab, overriding solution-exploration.md's top Hybrid-architecture recommendation per explicit user convergence. Fix popup-close fragility by switching create/link REST calls from the wrapped SDK client to raw <code>fetch(url, { keepalive: true })</code>, which survives iframe teardown but cannot chain on a response after the popup closes &mdash; so templates whose <code>linkTo</code> rules depend on <code>justCreatedTasks</code> (and any template's own link-to-parent step) remain exposed if the popup closes mid-chain. Templates and parallelizable REST reads get <code>localStorage</code>-backed caching with a 4-hour TTL (no event-driven invalidation exists &mdash; verified infeasible). Progress feedback uses two <code>IHostDialogService.openMessageDialog</code> calls (start/end); design-time inspection of the SDK typings found this API has <strong>no programmatic close handle</strong>, so the "auto-dismiss after 5s" ask from convergence is not achievable as literally stated.</p>
+
+    <h3>Key Decisions</h3>
+    <ul class="tight">
+      <li>No new contribution surface; Hub/Hybrid explicitly rejected for this iteration &mdash; <a href="decision-log.html#adr-001">ADR-001</a>.</li>
+      <li>Creates/links move to <code>fetch(keepalive:true)</code> with a bearer token from <code>VSS.getAccessToken()</code>; ordering-dependent templates and every template's link-to-parent step remain vulnerable to popup close before dispatch &mdash; accepted limitation &mdash; <a href="decision-log.html#adr-002">ADR-002</a>.</li>
+      <li>Template caching: <code>localStorage</code>, lazy population, 4-hour TTL (configurable); event-driven invalidation confirmed infeasible &mdash; <a href="decision-log.html#adr-003">ADR-003</a>.</li>
+      <li>Progress feedback: two <code>openMessageDialog</code> calls, single pre-focused button each; true timer-driven auto-close not implementable against the confirmed API &mdash; <a href="decision-log.html#adr-004">ADR-004</a>.</li>
+      <li><code>getTeamSettings</code>/<code>getWorkItem</code> parallelized; template creates split into concurrent "independent" and sequential "ordered" groups &mdash; <a href="decision-log.html#adr-005">ADR-005</a>.</li>
+    </ul>
+
+    <h3>Open Questions / Risks</h3>
+    <ul class="tight">
+      <li><code>openMessageDialog</code> has no SDK-confirmed way to close programmatically &mdash; re-confirm "two single-click dialogs, no auto-timer" with the product owner before implementation.</li>
+      <li>Popup-close survival is not guaranteed for ordering-dependent creates or any not-yet-dispatched link call &mdash; communicate as the actual behavior, not full survival.</li>
+      <li>Exact REST endpoint/<code>api-version</code> for fetch-based calls should be confirmed against the wrapped client's actual network traffic at implementation time, not guessed.</li>
+      <li>4h TTL and cache-key scheme are sensible defaults, not hard requirements &mdash; tune during implementation.</li>
+      <li>Shimmed vs. native <code>localStorage</code> path in the real deployment target is unconfirmed &mdash; minor write-timing nuance only.</li>
+    </ul>
+  </div>
+</section>
+
+<p class="toc">Contents: <a href="#overview">Design Overview</a> &middot; <a href="#architecture">Architecture</a> &middot; <a href="#components">Key Components</a> &middot; <a href="#dataflow">Data Flow</a> &middot; <a href="#integration">Integration Points</a> &middot; <a href="#decisions">Design Decisions</a> &middot; <a href="#examples">Concrete Examples</a> &middot; <a href="#scope">Out of Scope</a> &middot; <a href="#success">Success Criteria</a></p>
+
+<main>
+
+<h2 id="overview">Design Overview</h2>
+<div class="card">
+  <p><strong>Business context</strong>: Linked Tasks Automation is a stable, in-production Azure DevOps extension that creates templated child work items from a parent with one click. Users get zero feedback during creation, and closing the work-item dialog immediately after clicking silently kills any in-flight task creation.</p>
+  <p><strong>Chosen approach</strong>: Keep the extension's <strong>single existing contribution</strong> unchanged &mdash; no Hub, no observer, no form-page tab &mdash; reversing solution-exploration.md's top-recommended Hybrid architecture per explicit convergence favoring simplicity. Popup-close survival is addressed via raw <code>fetch</code> with <code>keepalive: true</code> for creates/links. Templates are cached in <code>localStorage</code> with a TTL. Progress is surfaced via two <code>IHostDialogService.openMessageDialog</code> calls &mdash; necessarily modal, and without a programmatic close handle (a design-time finding).</p>
+</div>
+
+<h2 id="architecture">Architecture</h2>
+<h3>System Context (C4 Level 1)</h3>
+<pre class="ascii">
+                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+   Azure DevOps User      &#9474;  clicks "Create linked       &#9474;
+   (work item editor)  &#9472;&#9472;&#9472;&#9500;  tasks" toolbar/context-menu &#9474;
+                          &#9474;  action                       &#9474;
+                          &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                                          &#9474;
+                                          &#9660;
+                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+                          &#9474;  Linked Tasks Automation Extension     &#9474;
+                          &#9474;  (single ms.vss-web.action             &#9474;
+                          &#9474;   contribution &mdash; toolbar.html/app.ts)  &#9474;
+                          &#9492;&#9472;&#9472;&#9472;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                    reads (wrapped&#9474;               &#9474;writes: fetch +
+                    witClient/    &#9474;               &#9474;keepalive:true,
+                    workClient)   &#9474;               &#9474;Bearer token via
+                                  &#9660;               &#9660;VSS.getAccessToken()
+                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+                          &#9474;  Azure DevOps Work Item Tracking       &#9474;
+                          &#9474;  REST API (vso.work / vso.work_write)  &#9474;
+                          &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+
+                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+                          &#9474;  Browser localStorage                   &#9474;
+                          &#9474;  (origin-scoped; survives toolbar        &#9474;
+                          &#9474;   iframe teardown; template cache, TTL)  &#9474;
+                          &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                                          &#9650;
+                                          &#9474; read/write
+                          [Linked Tasks Automation Extension, above]
+
+                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+   Azure DevOps User  &#9668;&#9472;&#9472;&#9472;&#9524;  Azure DevOps Host Frame                &#9474;
+   (sees modal dialogs)   &#9474;  (renders IHostDialogService dialogs;    &#9474;
+                          &#9474;   outlives the toolbar iframe)           &#9474;
+                          &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+</pre>
+
+<h3>Container Overview (C4 Level 2)</h3>
+<pre class="ascii">
+                         &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+                         &#9474;   toolbar.html            &#9474;
+                         &#9474;   VSS.init(); registers    &#9474;
+                         &#9474;   create-linked-tasks-      &#9474;
+                         &#9474;   button-test                &#9474;
+                         &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                                     &#9474; VSS.require(["scripts/app"]) &#8594; app.create(context)
+                                     &#9660;
+        &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+        &#9474;                    app.ts &mdash; App Orchestrator                    &#9474;
+        &#9474;     create() &#8594; AddTasks() &#8594; per-template dispatch/tracking      &#9474;
+        &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+               &#9474;            &#9474;             &#9474;              &#9474;
+               &#9660;            &#9660;             &#9660;              &#9660;
+      &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+      &#9474; Template      &#9474; &#9474; Template    &#9474; &#9474; Auth       &#9474; &#9474; Progress Dialog       &#9474;
+      &#9474; Cache          &#9474; &#9474; Classifier  &#9474; &#9474; Token      &#9474; &#9474; Controller             &#9474;
+      &#9474; (localStorage,&#9474; &#9474; (linkTo     &#9474; &#9474; Provider   &#9474; &#9474; (openMessageDialog     &#9474;
+      &#9474;  4h TTL)       &#9474; &#9474;  rule scan) &#9474; &#9474;            &#9474; &#9474;  start/completion)      &#9474;
+      &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498; &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498; &#9492;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498; &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+             &#9660;                                &#9660;                   &#9660;
+   &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;            &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+   &#9474; Browser              &#9474;            &#9474; Keepalive Fetch      &#9474;  &#9474; Azure DevOps Host      &#9474;
+   &#9474; localStorage          &#9474;            &#9474; Client                &#9474;  &#9474; Frame                   &#9474;
+   &#9474; (origin-scoped)        &#9474;            &#9474; (create/link,         &#9474;  &#9474; (modal dialogs;          &#9474;
+   &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;            &#9474;  keepalive:true)   &#9474;  &#9474;  outlives the iframe)    &#9474;
+                                    &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                                             &#9474;
+                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9500;
+                          &#9474; Existing Wrapped         &#9474;
+                          &#9474; REST Client                &#9474;
+                          &#9474; (witClient/workClient,     &#9474;
+                          &#9474;  reads only)                 &#9474;
+                          &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                                &#9474;            &#9474;
+                                &#9660;            &#9660;
+                     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+                     &#9474; Azure DevOps Work Item Tracking      &#9474;
+                     &#9474; REST API (vso.work / vso.work_write) &#9474;
+                     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+</pre>
+<p>All containers except the host frame and the REST API live inside the same iframe/JS bundle &mdash; a single-container extension with no server tier. <code>localStorage</code> and the host frame are the only pieces of state/UI outside that iframe's lifecycle, which is why they're the vehicles used for caching and progress display.</p>
+
+<h2 id="components">Key Components</h2>
+<table>
+<tr><th>Component</th><th>Purpose</th><th>Key Interfaces</th><th>Dependencies</th></tr>
+<tr><td><b>App Orchestrator</b><br><code>app.ts: create, AddTasks</code></td><td>Entry point/coordinator for one invocation</td><td>Called by <code>toolbar.html</code>; calls all other components</td><td>VSS SDK, all components below</td></tr>
+<tr><td><b>Existing Wrapped REST Client</b><br><code>witClient/workClient</code></td><td>All read-only REST calls, unchanged</td><td>SDK-generated REST client</td><td>Work Item Tracking REST API</td></tr>
+<tr><td><b>Template Cache</b></td><td>Avoid re-fetching templates every invocation</td><td>Called before <code>getTemplates</code>/<code>getTemplate</code>; falls through to wrapped client on miss</td><td><code>localStorage</code></td></tr>
+<tr><td><b>Template Classifier</b></td><td>Determine which templates can create concurrently</td><td>Called once per invocation post-resolution</td><td>Template Cache's resolved bodies</td></tr>
+<tr><td><b>Auth Token Provider</b></td><td>Bearer token for raw <code>fetch</code> calls</td><td>Wraps <code>VSS.getAccessToken()</code></td><td>VSS SDK</td></tr>
+<tr><td><b>Keepalive Fetch Client</b></td><td>All create/link REST calls, popup-close resilient</td><td>Called per template and by the <code>ToAllOtherChilds</code> path</td><td>Auth Token Provider, REST API</td></tr>
+<tr><td><b>Progress Dialog Controller</b></td><td>Start/completion acknowledgment</td><td><code>VSS.getService(Dialog): IHostDialogService</code></td><td>Azure DevOps Host Frame</td></tr>
+</table>
+
+<h2 id="dataflow">Data Flow</h2>
+<div class="card">
+<pre class="ascii">
+click &#8594; [cache check] &#8594; [start dialog] &#8594; split templates
+                                            &#9474;
+                     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+                     &#9660;                                                &#9660;
+        independent group (parallel)                    ordered group (sequential)
+        create(keepalive) &#8594; link-to-parent(keepalive)     create(keepalive) &#8594; push to
+        &#8594; ToAllOtherChilds links(keepalive)                  justCreatedTasks &#8594; link-to-parent
+                                                                (keepalive) &#8594; justCreatedTasks-
+                                                                derived links (keepalive) &#8594; next
+                     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9498;
+                                             &#9660;
+                              Promise.allSettled(...) [only if popup still open]
+                                             &#9660;
+                                     [completion dialog]
+</pre>
+<ol>
+<li>Click &#8594; <code>toolbar.html</code> &#8594; <code>app.create(context)</code> (<code>app.ts:611</code>).</li>
+<li><code>AddTasks</code> fires <code>getTeamSettings</code> + <code>getWorkItem</code> concurrently (was nested, <code>app.ts:38-48</code>).</li>
+<li><code>GetChildTypes</code> unchanged (already parallel internally).</li>
+<li>Template Cache checked; hit skips straight to step 6, miss fetches then writes back with a timestamp.</li>
+<li>Progress Dialog Controller opens the start dialog, not awaited.</li>
+<li>Template Classifier splits templates into independent/ordered groups.</li>
+<li>Independent group runs concurrently via <code>Promise.all</code>; ordered group runs sequentially, mirroring today's chain structure.</li>
+<li><code>Promise.allSettled</code> over both groups feeds the completion dialog &mdash; only reachable if the popup is still open.</li>
+</ol>
+</div>
+
+<h2 id="integration">Integration Points</h2>
+<table>
+<tr><th>Existing code</th><th>Change</th></tr>
+<tr><td><code>src/vss-extension.json:66-84</code></td><td>Unchanged &mdash; no manifest edits (<a href="decision-log.html#adr-001">ADR-001</a>)</td></tr>
+<tr><td><code>src/toolbar.html:14-24</code></td><td>Unchanged</td></tr>
+<tr><td><code>app.ts:38-48</code></td><td>Parallelize <code>getTeamSettings</code>/<code>getWorkItem</code> (<a href="decision-log.html#adr-005">ADR-005</a>)</td></tr>
+<tr><td><code>app.ts:53-66</code></td><td>Insert cache check + classifier + independent/ordered dispatch split</td></tr>
+<tr><td><code>app.ts:72-83</code></td><td>Split into independent/ordered path variants, routed through Keepalive Fetch Client</td></tr>
+<tr><td><code>app.ts:85-102</code> (<code>getRelatedWorkItems</code>)</td><td>Read stays wrapped; its <code>linkItems</code> call (<code>:97</code>) moves to Keepalive Fetch Client</td></tr>
+<tr><td><code>app.ts:104-199</code> (<code>createWorkItem</code>)</td><td><code>createWorkItem</code> call (<code>:110</code>) and all <code>linkItems</code> calls (<code>:120,140,150,159,167,175,183</code>) move to Keepalive Fetch Client; rejection handler (<code>:189-198</code>) feeds the completion summary</td></tr>
+<tr><td><code>app.ts:201-229</code> (<code>linkItems</code>)</td><td>Becomes the Keepalive Fetch Client's link operation, same JSON-Patch shape</td></tr>
+<tr><td><code>app.ts:495-538</code> (<code>getTemplate</code>, <code>getTemplates</code>)</td><td>Cache-check-first wrapper (<a href="decision-log.html#adr-003">ADR-003</a>)</td></tr>
+<tr><td><code>app.ts:611-628</code> (<code>create</code>)</td><td>Start-dialog call added (<a href="decision-log.html#adr-004">ADR-004</a>)</td></tr>
+<tr><td>New: <code>VSS.getAccessToken()</code>, <code>VSS.getService(Dialog)</code></td><td>Not used anywhere in the codebase today</td></tr>
+<tr><td>Unaffected</td><td><code>GetChildTypes</code>, all filter/template-matching helpers &mdash; pure logic, untouched</td></tr>
+</table>
+
+<h2 id="decisions">Design Decisions</h2>
+<table>
+<tr><th>ADR</th><th>Decision</th><th>Summary</th></tr>
+<tr><td><a href="decision-log.html#adr-001">ADR-001</a></td><td>No new contribution surface</td><td>Reject Hub/Hybrid; stay on the single existing action contribution</td></tr>
+<tr><td><a href="decision-log.html#adr-002">ADR-002</a></td><td><code>fetch(keepalive:true)</code> for creates/links</td><td>Replaces wrapped client for writes only; documented response-chaining limitation</td></tr>
+<tr><td><a href="decision-log.html#adr-003">ADR-003</a></td><td><code>localStorage</code> + TTL caching</td><td>Lazy population, 4h default TTL; event-driven invalidation infeasible</td></tr>
+<tr><td><a href="decision-log.html#adr-004">ADR-004</a></td><td>Modal dialog progress feedback</td><td>Two <code>openMessageDialog</code> calls; no programmatic auto-close achievable</td></tr>
+<tr><td><a href="decision-log.html#adr-005">ADR-005</a></td><td>Bounded, dependency-aware parallelization</td><td>Parallelize independent reads and non-ordering-dependent creates</td></tr>
+</table>
+
+<h2 id="examples">Concrete Examples</h2>
+<div class="card">
+<p><b>1. Independent templates survive popup close.</b> Three Task templates with no ordering <code>linkTo</code> rule; user closes the popup ~150ms after clicking create. All three creates were already dispatched via <code>fetch(keepalive:true)</code>, so all three work items are created regardless. Each template's link-to-parent call succeeds only if its create's response was read before the popup closed.</p>
+<p><b>2. Ordering-dependent template exposed to popup close.</b> "Task A" (no <code>linkTo</code>) and "Task B" (<code>linkTo: PreviouslyCreatedTask</code>); popup closes 50ms after click, before Task A's response is read. Task A's create still completes via keepalive; Task B's create never fires because the ordered chain died with the iframe before reaching it &mdash; the accepted, documented limitation.</p>
+<p><b>3. Cache TTL staleness trade-off.</b> User creates linked tasks twice, 20 minutes apart. Second click serves templates from <code>localStorage</code>, skipping REST round trips. If a template was edited via Team Settings in between, the second click still uses the stale version until the 4-hour TTL expires &mdash; accepted, since no invalidation event exists.</p>
+</div>
+
+<h2 id="scope">Out of Scope</h2>
+<ul class="tight reject">
+<li>Any Hub, observer, or work-item-form-page contribution (ADR-001)</li>
+<li>Guaranteed popup-close survival for ordering-dependent creates/links (ADR-002)</li>
+<li>True non-blocking (non-modal) in-flight progress UI</li>
+<li>Programmatic auto-dismiss of progress dialogs after a fixed delay (ADR-004)</li>
+<li>Event-driven cache invalidation (ADR-003)</li>
+<li>Full <code>Q</code>-library migration across the rest of the codebase</li>
+<li><code>IExtensionDataService</code>-based cross-device cache durability</li>
+<li>Fixing the pre-existing <code>bugsBehavior</code> bug in <code>GetChildTypes</code></li>
+<li>Automated tests for this feature (no test framework exists yet)</li>
+</ul>
+
+<h2 id="success">Success Criteria</h2>
+<ol class="tight">
+<li>Repeat invocations within the TTL skip <code>getTemplates</code>/<code>getTemplate</code> entirely.</li>
+<li><code>getTeamSettings</code> and <code>getWorkItem</code> execute concurrently, not nested.</li>
+<li>Non-ordering-dependent templates create concurrently, with no linking-behavior change vs. today.</li>
+<li>Any create dispatched before popup close results in a created work item, even if the popup closes immediately after.</li>
+<li>User sees an immediate start acknowledgment and, if the popup stays open, a completion summary.</li>
+<li>Ordered-group templates produce identical output to current behavior.</li>
+</ol>
+
+</main>
+</body>
+</html>

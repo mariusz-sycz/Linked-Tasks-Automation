@@ -1,0 +1,194 @@
+orchestrator:
+  started_phase: phase-6
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6]
+  failed_phases: []
+
+  auto_fix_attempts:
+    phase-1: 0
+    phase-2: 0
+    phase-3: 0
+    phase-4: 0
+    phase-5: 0
+
+  options:
+    html_output: true
+    mockup_format: html
+    brainstorming_enabled: true
+    design_enabled: true
+
+  created: 2026-08-08T13:55:25Z
+  updated: 2026-08-08T15:32:31Z
+  task_path: .maister/tasks/research/2026-08-08-speed-up-task-creation
+
+  task_ids:
+    phase-1: "1"
+    phase-2: "2"
+    phase-3: "3"
+    phase-4: "4"
+    phase-5: "5"
+    phase-6: "6"
+
+task:
+  title: "Speed up task creation, add progress feedback, fix popup-close reliability"
+  description: >
+    Research how to make the Linked Tasks Automation extension faster and more reliable:
+    (1) reduce the delay between clicking "create" and the first child task appearing,
+    considering async template preloading/caching in browser storage, async task creation,
+    and async linking after creation; (2) give the user visible, non-blocking progress
+    feedback (progress bar or notification) while tasks are being created; (3) fix the bug
+    where task creation is not working / stops when the work item is opened in an Azure
+    DevOps popup panel (opened on top of another item) — creation should survive the popup
+    being closed and only stop on a full page refresh.
+  status: completed
+  tags: [performance, ux, reliability, azure-devops-extension]
+  priority: high
+
+research_context:
+  research_type: mixed
+  research_question: >
+    How can we speed up child work item creation in the Linked Tasks Automation extension
+    (async template preloading/caching, async creation, async linking), give users visible
+    non-blocking progress feedback, and fix task creation breaking when the work item is
+    opened in an Azure DevOps popup panel so creation survives popup close and only a full
+    page refresh stops it?
+  scope:
+    included:
+      - Current template loading and task/link creation flow in src/scripts/app.js (and related scripts)
+      - Azure DevOps Extension SDK (VSS) APIs relevant to async work, storage, and notifications
+      - Browser-side storage options (localStorage, IndexedDB, VSS extension data service) for caching templates
+      - Azure DevOps extension UI patterns for progress indication (toasts, panels, status indicators)
+      - Popup/panel lifecycle behavior in Azure DevOps and how it affects extension script execution
+    excluded:
+      - Full TypeScript migration (tracked separately in 2026-08-07-typescript-migration-approach)
+      - Server-side/backend changes (extension is stateless, browser-only)
+    constraints:
+      - Must work within Azure DevOps Extension SDK (VSS) constraints
+      - No backend/database available
+  methodology:
+    - "Trace exact call graph in app.ts from click to last REST call, annotating async boundaries"
+    - "Cross-reference toolbar.html entry point and vss-extension.json contribution targets/scopes"
+    - "Research VSS SDK capabilities per sub-question against bundled typings + Microsoft Learn docs"
+    - "Synthesize trade-offs per option (feasibility, complexity, risk) rather than one prescribed solution"
+  sources:
+    - "src/scripts/app.ts (primary logic surface)"
+    - "src/toolbar.html (frame entry point/lifecycle)"
+    - "src/vss-extension.json (contribution targets, scopes)"
+    - "src/gruntfile.js, src/configs/*.json, src/package.json, src/tsconfig.json (build/packaging)"
+    - "src/node_modules/vss-web-extension-sdk/typings/vss.d.ts (SDK typings, v1.104.0)"
+    - "Microsoft Learn Azure DevOps extension SDK docs (external)"
+    - ".maister/docs/project/{vision,roadmap,tech-stack}.md"
+  confidence_level: medium
+  project_doc_paths:
+    - .maister/docs/project/vision.md
+    - .maister/docs/project/roadmap.md
+    - .maister/docs/project/tech-stack.md
+  gathering_strategy:
+    categories: [codebase, platform-lifecycle, platform-storage, platform-progress-ui]
+    count: 4
+    source: planner
+  phase_summaries:
+    phase-1:
+      summary: >
+        All three sub-questions converge on one root cause: the extension's single ms.vss-web.action
+        contribution (toolbar/context-menu) has no pre-click load moment, renders no visible DOM, and
+        is very likely torn down when its hosting work-item dialog closes, aborting in-flight REST calls.
+        No-manifest-change wins exist today for caching (localStorage) and safe partial parallelization;
+        a robust fix for visible non-blocking progress and popup-close resilience requires a new
+        persistent/visible contribution surface.
+      decisions:
+        - decision: "Split remediation into a point-fix track (no manifest change) and an architecture track (new contribution surface)"
+          rationale: "Three independent gatherers converged on the same structural cause from unrelated angles"
+        - decision: "Recommend localStorage over IExtensionDataService/IndexedDB for template caching"
+          rationale: "IExtensionDataService is just a REST wrapper (no latency win); IndexedDB is unshimmed by the SDK and risks silent failure in sandboxed iframes"
+        - decision: "Do not blanket-parallelize the per-template create loop"
+          rationale: "Only templates without justCreatedTasks-referencing linkTo rules can safely run concurrently without changing existing template behavior"
+      risks:
+        - "The popup-close root cause rests on a documented category contrast (observer vs. form-scoped contributions), not a verbatim Microsoft statement about this exact contribution type, and has not been live-verified (no Azure DevOps org available)."
+        - "Whether the toolbar iframe is ever reused (vs. always freshly created) across repeated clicks is unresolved — affects only the viability of an in-memory cache layer, not the core recommendations."
+        - "Runtime resolution of the q AMD promise library in the packaged .vsix is unconfirmed."
+      artifacts:
+        - path: outputs/research-report.md
+          label: "Research Report"
+          html: outputs/research-report.html
+        - path: analysis/synthesis.md
+          label: "Synthesis"
+          html: null
+        - path: planning/research-brief.md
+          label: "Research Brief"
+          html: null
+        - path: planning/research-plan.md
+          label: "Research Plan"
+          html: null
+        - path: planning/sources.md
+          label: "Sources"
+          html: null
+        - path: analysis/findings/codebase-task-creation-flow.md
+          label: "Codebase: task creation flow"
+          html: null
+        - path: analysis/findings/platform-lifecycle-async-and-popup.md
+          label: "Platform: lifecycle & popup close"
+          html: null
+        - path: analysis/findings/platform-storage-template-caching.md
+          label: "Platform: storage & caching"
+          html: null
+        - path: analysis/findings/platform-progress-ui-feedback.md
+          label: "Platform: progress UI"
+          html: null
+      steps_completed: [1, 2, 3, 4]
+    phase-3:
+      summary: >
+        Generated 13 alternatives across 3 interdependent decision areas: contribution surface
+        (5 alternatives, recommended Hybrid action-trigger + hub-hosted execution), caching strategy
+        (4 alternatives, recommended lazy-now/eager-later), and progress feedback (4 alternatives,
+        recommended live-updating modal now, true live progress once architecture lands).
+      decisions:
+        - decision: "Decision Area 1 (contribution surface) resolved first; Areas 2 and 3 branch on its outcome"
+          rationale: "Three research gatherers converged on this dependency from unrelated angles"
+      risks:
+        - "Recommended Hybrid architecture's action-to-hub hand-off has no precedent in the research findings — needs a feasibility spike before being treated as committed."
+        - "Whether adding a Hub contribution alongside the existing action contribution has any Marketplace/manifest constraint was not investigated."
+      artifacts:
+        - path: outputs/solution-exploration.md
+          label: "Solution Exploration"
+          html: outputs/solution-exploration.html
+    phase-4:
+      summary: >
+        Converged on a simpler approach than the exploration's primary recommendation: no new
+        contribution surface. Use localStorage caching with a short TTL, switch create/link REST
+        calls to raw fetch(keepalive:true) for popup-close survival (not a 100% guarantee for every
+        cross-linked template on instant close, but covers the common case), and a self-dismissing
+        IHostDialogService dialog (~5s auto-close, close button) for start/finish notices.
+      decision_areas:
+        - area: "Contribution surface"
+          alternatives_count: 5
+          chosen_approach: "No new surface — point-fixes only, using fetch(keepalive:true) for create/link calls instead of the wrapped REST client, to maximize popup-close survival without building a Hub"
+        - area: "Caching strategy"
+          alternatives_count: 4
+          chosen_approach: "Lazy (check-cache-then-fetch) with a short TTL (a few hours); no template-save event exists to hook into (confirmed against Microsoft's extensibility-points doc and Service Hooks event catalog — neither covers template admin changes)"
+        - area: "Progress feedback"
+          alternatives_count: 4
+          chosen_approach: "Self-dismissing IHostDialogService dialog: shows start/finish notice, auto-closes after ~5s, close button available immediately"
+      deferred_ideas:
+        - "Hub / Hybrid architecture (100%-guaranteed popup-close survival + true live progress) — deferred in favor of the simpler fetch(keepalive) + self-dismissing dialog approach; revisit if the simple approach proves insufficient in practice"
+        - "Event-driven cache invalidation on template save — confirmed no such event exists in Azure DevOps's extensibility points or Service Hooks catalog"
+    phase-5:
+      summary: >
+        High-level design and 5-ADR decision log produced for the no-new-surface approach: fetch(keepalive:true)
+        replaces the wrapped REST client for creates/links; localStorage + 4h TTL caching; two openMessageDialog
+        calls (start/finish) for progress feedback since the confirmed API has no programmatic close handle
+        (one-click-dismiss shipped for v1, self-closing jQuery content flagged as a non-blocking follow-up spike);
+        getTeamSettings/getWorkItem parallelized and template creates split into independent/ordered groups.
+      architecture_style: "No new contribution surface — point-fixes within the existing single ms.vss-web.action contribution"
+      decisions_count: 5
+      artifacts:
+        - path: outputs/high-level-design.md
+          label: "High-Level Design"
+          html: outputs/high-level-design.html
+        - path: outputs/decision-log.md
+          label: "Decision Log"
+          html: outputs/decision-log.html
+
+options:
+  html_output: true
+  brainstorming_enabled: true
+  design_enabled: true
