@@ -275,6 +275,18 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# Local dev server self-signed certificate
+src/certs/
+
+# Packaged extension output
+dist/
+
+# Staged/compiled runtime files (toolbar.html, img, lib, scripts/app.js)
+build/
+
+# JetBrains IDEs (Rider, WebStorm, etc.)
+.idea/
+
 # Visual Studio 6 build log
 *.plg
 
@@ -348,4 +360,3 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
-/dist

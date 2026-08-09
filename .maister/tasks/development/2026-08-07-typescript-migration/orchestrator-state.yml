@@ -1,0 +1,283 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    spec_audit_verdict: "pass_with_concerns"
+    spec_audit_resolutions:
+      - "Duplicate PreviouslyCreatedTask/PreviouslyJustCreatedTask linkTo branches: preserve as-is, add comment"
+      - "bugsBehavior fix shape: thread already-fetched teamSettings through as a GetChildTypes parameter"
+      - "Logging call-site count corrected from ~15+ to ~6 (WriteLog has zero live call sites)"
+    skip_test_suite: true  # no test framework exists (no-op auto-set; nothing to skip)
+    e2e_enabled: false
+    user_docs_enabled: false
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: "2026-08-07T23:22:50Z"
+  updated: "2026-08-08T10:59:51Z"
+  task_path: .maister/tasks/development/2026-08-07-typescript-migration
+  task_ids:
+    phase-1: "1"
+    phase-2: "2"
+    phase-3: "3"
+    phase-4: "4"
+    phase-5: "5"
+    phase-6: "6"
+    phase-7: "7"
+    phase-8: "8"
+    phase-9: "9"
+    phase-10: "10"
+    phase-11: "11"
+    phase-12: "12"
+    phase-13: "13"
+    phase-14: "14"
+
+task:
+  title: "TypeScript Migration: Linked-Tasks-Automation"
+  description: "Migrate the Linked-Tasks-Automation Azure DevOps extension (src/scripts/app.js, AMD/RequireJS, Grunt build, VSS SDK, Q promises, no tests) to TypeScript, following the recommended approach from prior research: tsc via grunt-exec, JSDoc/checkJs bootstrap then single-shot .ts rename, VSS SDK typed via its own bundled typings/, Q typed via @types/q, no-test-suite risk mitigated via manual verification checklist."
+  status: completed
+  tags: ["typescript", "migration", "azure-devops-extension"]
+  priority: null
+
+verification_context:
+  last_status: passed
+  issues_found:
+    - {severity: warning, category: "dead-code", description: "global.d.ts duplicate/masked-conflict VSS declaration", fixed: true}
+    - {severity: warning, category: "type-safety", description: "ctx typed any instead of available WebContext", fixed: true}
+    - {severity: info, category: "type-safety", description: "checkRules rules param typed any", fixed: true}
+    - {severity: info, category: "type-safety", description: "IsJsonString param typed any, contradicted own JSDoc", fixed: true}
+    - {severity: warning, category: "dead-weight", description: "73 lines of redundant JSDoc across 24 functions", fixed: true}
+    - {severity: info, category: "documentation-accuracy", description: "work-log.md overstated two self-assessment claims", fixed: true}
+    - {severity: info, category: "process", description: "app.js build output untracked, not gitignored", fixed: false}
+    - {severity: info, category: "pre-existing-bug", description: "bugsBehavior numeric-enum vs string-literal comparison, out of scope", fixed: false}
+    - {severity: info, category: "pre-existing-tooling", description: "tfx-cli/Node v22 incompatibility on grunt package-dev", fixed: false}
+  fixes_applied:
+    - "Deleted src/scripts/global.d.ts"
+    - "let ctx: WebContext = null as any; (was any)"
+    - "checkRules(rules: WorkItemFields | WorkItemFields[], ...) (was any)"
+    - "IsJsonString(str: string) (was any)"
+    - "Stripped 22 pure @param/@returns JSDoc blocks (117 lines)"
+    - "Corrected 2 overstated claims in implementation/work-log.md"
+  decisions_made:
+    - "Fix all 6 fixable findings (operator chose 'Fix all fixable issues')"
+    - "Skip full subagent re-run after fixes; tsc-clean recompile judged sufficient (operator chose 'No, proceed')"
+  reverify_count: 0
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: null
+  tdd_gate_skipped: true
+  tdd_gate_skip_reason: "No test framework exists; roadmap explicitly defers automated tests to Phase 2. Promise-chain bug fix verified via manual .vsix checklist instead."
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: false
+    involves_data_operations: false
+    ui_heavy: false
+  research_reference:
+    path: .maister/tasks/research/2026-08-07-typescript-migration-approach
+    research_question: "What is the best approach for migrating the Linked-Tasks-Automation Azure DevOps extension (AMD/RequireJS, Grunt build, VSS SDK, Q promises, no tests) to TypeScript — including tooling choices, incremental vs. big-bang strategy, and type definitions for the VSS SDK?"
+    research_type: mixed
+    confidence_level: high
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  project_doc_paths:
+    - .maister/docs/project/vision.md
+    - .maister/docs/project/roadmap.md
+    - .maister/docs/project/tech-stack.md
+  phase_summaries:
+    research:
+      summary: "Compile with tsc via grunt-exec (not unmaintained grunt-ts), AMD output unchanged at scripts/app.js. Bootstrap app.js with JSDoc + allowJs/checkJs first, then single-shot rename to .ts (single-file codebase, classic multi-file incremental doesn't apply). Type VSS SDK via its own bundled typings/ (vss.d.ts, tfs.d.ts) — no DefinitelyTyped needed — plus one ambient `declare const VSS` for the non-AMD global. Type Q via current @types/q (v1.5.8, TS 4.5+). No-test-suite risk has no tooling fix — mitigate via small reversible commits and manual side-by-side .vsix verification checklist. Do not adopt azure-devops-extension-sdk (not a drop-in). Pre-existing bugs will surface during migration: 3 dead AMD imports (Controls, StatusIndicator, Dialogs), duplicate logging functions (Log/WriteTrace/WriteLog byte-identical), 2 implicit-global bugs (app.js:459, app.js:526), 1 dead function with a sync-return-of-async-value bug (getWorkItemFormService)."
+      key_findings:
+        - "VSS SDK ships its own bundled .d.ts typings (vss.d.ts, tfs.d.ts, rmo.d.ts) covering the exact modules used — no DefinitelyTyped or hand-rolled types needed"
+        - "Global VSS object is not an AMD dependency — loaded via <script> tag in toolbar.html, needs ambient `declare const VSS`"
+        - "grunt-ts is unmaintained; tsc via the already-installed grunt-exec is the lower-overhead build integration"
+        - "@types/q is current (v1.5.8, Nov 2023, targets TS 4.5+) — no staleness problem"
+        - "Q is not an npm dependency; resolved entirely via the VSS SDK's internal AMD loader, not npm's module graph"
+        - "3 dead AMD imports (Controls, StatusIndicator, Dialogs) and 1 dead function (getWorkItemFormService) — candidates for deletion during the port"
+        - "No TS/lint tooling exists today — clean slate, nothing to reconcile"
+        - "azure-devops-extension-sdk (newer SDK) is not a drop-in replacement — stays out of scope"
+        - "Single 617-line file means classic multi-file incremental migration literature doesn't transplant directly — adapted strategy is JSDoc/checkJs bootstrap then single-shot .ts rename"
+        - "No-test-suite risk has no tooling substitute — literature converges on process discipline (small commits, manual characterization-style verification)"
+      recommended_approach: "Add typescript + @types/q as devDependencies. Reference SDK types via \"types\": [\"vss-web-extension-sdk\"] in tsconfig.json. Add a declare const VSS ambient block. Compile via a new grunt-exec target (tsc -p tsconfig.json) inserted ahead of exec:package_dev/exec:package_release, with output landing at the unchanged src/scripts/app.js path (module: amd). Bootstrap app.js with JSDoc + allowJs/checkJs, resolve everything the compiler surfaces (including pre-existing bugs), then perform a single-shot rename to app.ts. Delete the 3 dead AMD imports and 1 dead function during the port. Build a manual verification checklist (one line per cataloged function) and exercise it against a real/sandbox .vsix before and after migration."
+      decisions:
+        - decision: "Use grunt-exec + direct tsc invocation, not grunt-ts"
+          rationale: "grunt-ts is unmaintained; grunt-exec is already a dependency"
+        - decision: "JSDoc/checkJs bootstrap, then single-shot .ts rename"
+          rationale: "Nothing to incrementalize across in a single-file module; unguarded big-bang rename skips compiler feedback"
+        - decision: "Type the VSS SDK from its own bundled typings/, not DefinitelyTyped"
+          rationale: "vss-web-extension-sdk ships vss.d.ts, tfs.d.ts, rmo.d.ts covering the exact modules used"
+        - decision: "Keep @types/q; treat Q-to-native-Promise conversion as optional follow-up"
+          rationale: "@types/q v1.5.8 (Nov 2023) is current and targets TS 4.5+"
+        - decision: "Do not adopt azure-devops-extension-sdk as part of this migration"
+          rationale: "Confirmed not a drop-in replacement — distinct, larger, non-drop-in migration"
+      risks:
+        - "No-test-suite mitigation pattern and Q-to-native-Promise recommendation rest on WebSearch summaries only — directionally reliable, not verbatim-sourced"
+        - "azure-devops-extension-sdk's exact npm publish date could not be cross-verified"
+        - "Installed SDK version is 1.110.0 per lockfile, not ^1.104.0 as referenced in project docs — should be reconciled opportunistically"
+      artifacts:
+        - path: analysis/research-context/research-report.md
+          label: "Research Report"
+          html: analysis/research-context/research-report.html
+        - path: analysis/research-context/synthesis.md
+          label: "Research Synthesis"
+          html: null
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files: ["src/scripts/app.js", "src/toolbar.html", "src/vss-extension.json", "src/gruntfile.js", "src/package.json"]
+      primary_language: "JavaScript (ES6+, AMD)"
+      summary: "Confirmed current-state baseline: single 617-line AMD module, zero TS, zero tests, clean tooling slate. Corroborates prior research 1:1. New finding: broken sequential-promise-chain bug in AddTasks/createChildFromTemplate/createWorkItem — missing return statements mean templates aren't actually processed one-at-a-time as the code implies."
+      decisions:
+        - decision: "Confirm, don't repeat, the research report's tooling/typing choices"
+          rationale: "This analysis independently re-derived the same facts from the live file tree — strong cross-validation"
+        - decision: "Treat the newly-found broken-chain bug as an explicit migration decision point, not a silent fix"
+          rationale: "Async typing will force the missing return statements into the open; needs an explicit fix-or-preserve call"
+        - decision: "Do not carry Controls/StatusIndicator/Dialogs/_WorkItemServices into the typed dependency list unless UI feedback is added"
+          rationale: "All four AMD imports are dead in the current code"
+      risks:
+        - "Zero test coverage — manual side-by-side .vsix testing is the only safety net"
+        - "Newly found bug: createChildFromTemplate/createWorkItem never return their promises, so AddTasks's sequential chain doesn't actually wait for network calls — justCreatedTasks ordering not guaranteed today"
+        - "app.js:459 implicit global loop variable and app.js:526 reading .bugsBehavior off a pending Promise (always undefined, dead AsTasks/AsRequirements branches)"
+        - "getWorkItemFormService is dead, broken code — safe to delete but confirm it isn't a placeholder for planned functionality"
+        - "No UI feedback exists during task creation today despite StatusIndicator/Dialogs being imported — worth a product decision on scope"
+      artifacts:
+        - path: analysis/codebase-analysis.md
+          label: "Codebase Analysis"
+          html: null
+    clarifications: []
+    gap_analysis:
+      integration_points: ["gruntfile.js package-dev/package-release task chains", "vss-extension.json files[] scripts/app.js path", "toolbar.html VSS.require module id"]
+      summary: "Mechanical migration path fully specified by prior research/codebase-analysis. Two new gaps: tsc build step risks becoming orphaned if not wired into BOTH package-dev and package-release Grunt task chains; roadmap's logging-consolidation and version-alignment Phase-1 items weren't covered by clarifications.md. TDD Red/Green gate recommended skip/adapt since roadmap explicitly defers automated tests to Phase 2."
+      decisions:
+        - decision: "has_reproducible_defect true but TDD Red/Green gate recommended skip/adapt"
+          rationale: "roadmap.md and tech-stack.md both explicitly place test-framework introduction after this migration; forcing the gate would require standing up Jest mid-task"
+        - decision: "creates_new_entities/involves_data_operations/ui_heavy all false"
+          rationale: "toolbar.html/vss-extension.json unchanged by design — only build config (tsconfig.json, ambient .d.ts) is added"
+      risks:
+        - "Build-wiring orphan risk: tsc exec target must be prepended into BOTH package-dev and package-release task arrays in gruntfile.js, or compiled output is silently never invoked on one path"
+        - "No node_modules installed yet — VSS SDK's bundled .d.ts shape not yet verified against real declaration files, only README/registry metadata; expect some any/type-assertion fallback"
+        - "linkImtes typo confirmed at ~8 call sites — zero external impact but worth explicit go/no-go"
+      artifacts:
+        - path: analysis/gap-analysis.md
+          label: "Gap Analysis"
+          html: null
+    scope_clarifications:
+      scope_expanded: true
+      summary: "6 scope decisions resolved: TDD gate skipped/adapted, build wiring must be explicitly dual-verified, logging consolidation + version alignment + linkImtes rename all included (roadmap Phase 1 items), tsconfig strict:true from the start."
+      decisions:
+        - decision: "Skip/adapt TDD Red/Green gate"
+          rationale: "No test framework exists; roadmap defers automated tests to Phase 2; manual .vsix checklist substitutes"
+        - decision: "Require explicit dual-wiring of tsc into package-dev AND package-release"
+          rationale: "Zero test coverage means an orphaned compile step would only surface via manual inspection"
+        - decision: "Include logging consolidation, version alignment, linkImtes rename"
+          rationale: "All are roadmap-scoped Phase 1 items or low-risk cleanup touched incidentally during the rewrite"
+        - decision: "tsconfig strict:true from the start"
+          rationale: "Single-file codebase with JSDoc/checkJs bootstrap phase catches issues before rename; little benefit to progressive rollout"
+      risks: []
+      artifacts:
+        - path: analysis/scope-clarifications.md
+          label: "Scope Clarifications"
+          html: null
+    ui_mockups: {components_designed: [], summary: null, decisions: [], risks: [], artifacts: []}
+    specification:
+      summary: "Port app.js to strict TypeScript, module: amd emitted in-place at scripts/app.js, tsc via grunt-exec wired into both packaging paths, bundling the 3 pre-decided bug fixes plus 4 roadmap cleanup items. Self-verification caught one new orphaned import (_WorkItemServices) and resolved the version-alignment direction (package.json adopts 1.1.17, not the reverse)."
+      decisions:
+        - decision: "declare const VSS covers only the 4 methods actually called"
+          rationale: "No speculative surface for unused VSS APIs, per minimal-implementation standard"
+        - decision: "Compiled output emits in place, no outDir/rootDir remap"
+          rationale: "app.ts at src/scripts/app.ts emits directly back to src/scripts/app.js — zero manifest/HTML changes required"
+        - decision: "TFS/WorkItemTracking/Services (_WorkItemServices) added to the delete list"
+          rationale: "Used only inside the dead getWorkItemFormService function; orphaned by the same zero-references logic Q2 already established"
+        - decision: "package.json version becomes 1.1.17, not the reverse"
+          rationale: "vss-extension.json's 1.1.17 is already published to the Marketplace; rolling it back would misrepresent a shipped version"
+        - decision: "AMD module contract preserved at the behavioral level, not literal source-shape"
+          rationale: "tsc's AMD emit populates a generated exports object rather than literal return {create}; loader-level contract is unaffected"
+      risks:
+        - "tsc's AMD-emit shape change — manual checklist must exercise toolbar.html's VSS.require call path end to end, not just individual functions"
+        - "Build-wiring dual-verification is a hard acceptance gate — partial wiring is a silent-failure mode with zero test coverage to catch it"
+        - "VSS SDK's bundled .d.ts shape unverified against real files (no node_modules installed yet) — budget for any/type-assertion fallback"
+        - "Promise-chain fix is a genuine behavior change — manual checklist must exercise a work item with 3+ matching templates and multiple linkTo directive types, comparing before/after"
+      artifacts:
+        - path: implementation/spec.md
+          label: "Specification"
+          html: implementation/spec.html
+    architecture_decision: {decision: null, summary: null, decisions: [], risks: [], artifacts: []}
+    implementation_plan:
+      summary: "6 strictly sequential task groups (36 steps, 34 manual verification checklist items, no automated tests): (1) build tooling bootstrap, (2) JSDoc/checkJs bootstrap with all bug fixes + cleanup, (3) single-shot rename to app.ts, (4) Grunt build wiring (code-review-only verification), (5) npm install + full compile verification (closes the build-wiring orphan-risk finding for real), (6) manual .vsix end-to-end verification."
+      decisions:
+        - decision: "Test-driven step pattern replaced with verification-checklist pattern"
+          rationale: "No test framework exists or is introduced; each group substitutes 2-8 manual checklist items for the usual automated tests"
+        - decision: "All bug fixes and cleanup items land in one group (Group 2), while file is still .js"
+          rationale: "Spec's own sequencing mandates resolving every compiler-surfaced issue during the bootstrap phase before the rename"
+        - decision: "Grunt build-wiring split into two groups (4: wire, 5: verify for real)"
+          rationale: "Group 4 can only verify by code review since node_modules doesn't exist yet; Group 5 actually runs both Grunt tasks to close the orphan-risk finding as checked, not assumed"
+      risks:
+        - "Group 4's wiring verification is necessarily partial — only Group 5's real execution actually closes the dual-wiring requirement"
+        - "any/type-assertion fallback for loosely-typed .fields/JSON-Patch surfaces undiscoverable until Group 5's npm install"
+        - "Group 6 requires a real or sandbox Azure DevOps org — if unavailable, behavioral-parity success criteria can't be fully closed by this plan alone"
+      artifacts:
+        - path: implementation/implementation-plan.md
+          label: "Implementation Plan"
+          html: implementation/implementation-plan.html
+    implementation:
+      summary: "Groups 1-5 fully executed and independently re-verified by the main agent (not just subagent self-report): tsconfig/devDeps bootstrap, all bug fixes + dead-code/logging/version cleanup, single-shot app.ts rename, dual Grunt tsc wiring, npm install + full compile verification. tsc -p tsconfig.json exits 0 under strict:true; grunt package-release fully succeeds producing a .vsix. Group 6 (live-org manual E2E) was skipped by explicit operator decision — no sandbox ADO org available."
+      decisions:
+        - decision: "Accept out-of-scope tsconfig.json fix in Group 5 (types: [] + skipLibCheck: true)"
+          rationale: "vss-web-extension-sdk predates the @types convention and is unresolvable via 'types': [...] at all — this was a fatal TS2688 blocking any compilation, not a style choice. Fixed via the SDK's own bundled typings referenced directly (Core Requirement 6), independently verified working."
+        - decision: "Preserve newly-discovered bugsBehavior enum-vs-string-literal bug as-is, typed as `any`"
+          rationale: "Fixing it would be an undocumented behavior change beyond this spec's decided scope (Core Requirement 10 already covers a different bugsBehavior bug, already fixed in Group 2); flagged as a follow-up candidate instead"
+        - decision: "Skip Group 6 (manual .vsix E2E verification) entirely, per operator choice"
+          rationale: "No real/sandbox Azure DevOps org available; operator explicitly chose to accept automated tsc/grunt verification from Groups 1-5 as sufficient sign-off rather than defer or walk through it manually"
+      risks:
+        - "Group 6 skipped — spec Success Criteria 'full manual .vsix verification checklist passes side-by-side' is NOT closed; promise-chain fix behavior change and all 7 linkTo branches remain functionally unverified beyond compile-time typing"
+        - "tfx-cli@0.8.3's --rev-version flag is incompatible with Node v22, blocking grunt package-dev's full .vsix output (pre-existing, unrelated to this migration; grunt package-release unaffected)"
+        - "src/scripts/global.d.ts (Group 1's ambient VSS shim) is now redundant since app.ts references the SDK's real typings directly — harmless, optional cleanup candidate"
+      artifacts:
+        - path: implementation/work-log.md
+          label: "Work Log"
+          html: null
+        - path: implementation/implementation-plan.md
+          label: "Implementation Plan (checkboxes updated)"
+          html: implementation/implementation-plan.html
+    verification:
+      summary: "5 subagents (completeness, code review, pragmatic, production readiness, reality) independently re-ran every key claim rather than trusting work-log.md. Initial verdict: Passed with Issues (0 critical, several warnings/info, all converging on the same handful of findings). All 6 fixable findings applied and recompiled clean (tsc exit 0) in a Phase 11 fix pass. Verdict upgraded to Passed."
+      decisions:
+        - decision: "Fix all 6 mechanical, verified-safe findings (delete global.d.ts, tighten 3 types, strip 117 lines of redundant JSDoc, correct 2 work-log claims)"
+          rationale: "Every finding was independently proven zero-risk by 2-4 converging subagents (live-tested compile before/after, then reverted) before being recommended"
+        - decision: "Skip full subagent re-run after fixes, rely on tsc-clean recompile instead"
+          rationale: "Fixes were small and mechanical; each was already individually live-verified safe by the original reviewers, and a full re-run would be redundant given identical evidence"
+        - decision: "Overall status upgraded to Passed, not left at Passed with Issues"
+          rationale: "0 critical issues both before and after; all fixable warnings resolved; remaining 3 items are documented, accepted residual items, not code defects"
+      risks:
+        - "Group 6 (live-org manual E2E) was skipped by explicit operator decision — the promise-chain fix is verified only via compile-time typing and code reading, never exercised against a real Azure DevOps org. Recommend a live smoke test before or shortly after Marketplace publish."
+        - "src/scripts/app.js's version-control status (commit vs. .gitignore) is undecided — a policy choice for the operator, not resolved in this task"
+        - "resolved: tfx-cli@0.8.3/Node v22 incompatibility on grunt package-dev's --rev-version path — confirmed pre-existing and unrelated to this migration; grunt package-release (the actual Marketplace path) is unaffected"
+      artifacts:
+        - path: verification/implementation-verification.md
+          label: "Implementation Verification"
+          html: verification/implementation-verification.html
+        - path: verification/code-review-report.md
+          label: "Code Review"
+          html: null
+        - path: verification/pragmatic-review.md
+          label: "Pragmatic Review"
+          html: null
+        - path: verification/production-readiness-report.md
+          label: "Production Readiness"
+          html: null
+        - path: verification/reality-check.md
+          label: "Reality Check"
+          html: null

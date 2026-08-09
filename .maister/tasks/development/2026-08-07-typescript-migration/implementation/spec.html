@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — TypeScript Migration</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:100px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 20px; }
+.toc a { margin-right: 4px; }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:700px) { .cols { grid-template-columns:1fr; } }
+.cols .card ul { margin:6px 0 0; padding-left:18px; }
+.chip { display:inline-block; font-size:11.5px; background:var(--accent-soft); color:var(--accent);
+  border-radius:6px; padding:2px 7px; margin:2px 4px 2px 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.decision { border-left:3px solid var(--accent); padding-left:12px; margin:10px 0; }
+.risk { border-left:3px solid var(--warn); padding-left:12px; margin:10px 0; }
+.story { background:var(--accent-soft); border-radius:var(--radius); padding:10px 14px; margin:8px 0; font-style:italic; }
+header p.badge-row { margin:6px 0 0; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Specification: TypeScript Migration of <code>src/scripts/app.js</code></h1>
+  <p class="badge-row"><span class="badge">Spec</span> <span class="badge" style="background:var(--warn-soft);color:var(--warn)">Risk: Medium</span> <span class="badge" style="background:var(--ok-soft);color:var(--ok)">TDD gate: adapted (manual .vsix checklist)</span></p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>16</b><span>core requirements</span></div>
+  <div class="tile"><b>4</b><span>patterns reused</span></div>
+  <div class="tile"><b>4</b><span>new components</span></div>
+  <div class="tile"><b>3</b><span>bug fixes bundled</span></div>
+  <div class="tile"><b>0</b><span>UI / manifest changes</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Port the single 617-line AMD module <code>src/scripts/app.js</code> to <code>app.ts</code> with <code>strict: true</code>, compiled via a new <code>grunt-exec</code> <code>tsc</code> target wired into <strong>both</strong> packaging paths, output landing unchanged at <code>src/scripts/app.js</code>. Bundled in the same pass (all pre-decided, zero new judgment calls): fix the broken promise chain, fix two implicit-global bugs, delete dead code (including one import this spec newly identifies as orphaned), consolidate logging, rename <code>linkImtes</code>→<code>linkItems</code>, and align <code>package.json</code>'s version to the Marketplace-published <code>1.1.17</code>. No UI change, no test framework, no new SDK.</p>
+
+  <h2>Key Decisions</h2>
+  <div class="decision"><strong><code>declare const VSS</code> covers only the 4 methods actually called</strong> — <code>getWebContext</code>, <code>init</code>, <code>require</code>, <code>register</code>. No speculative surface for unused VSS APIs.</div>
+  <div class="decision"><strong>Compiled output emits in place, no <code>outDir</code>/<code>rootDir</code> remap</strong> — <code>app.ts</code> compiles directly back to <code>src/scripts/app.js</code>, the exact path both <code>vss-extension.json</code> and <code>toolbar.html</code> hardcode. Zero manifest/HTML changes.</div>
+  <div class="decision"><strong><code>TFS/WorkItemTracking/Services</code> import added to the delete list</strong> — extends clarifications.md Q2. It's used only inside the dead <code>getWorkItemFormService</code> function; deleting that function makes this import dead by Q2's own "zero references" rationale. Not explicitly enumerated upstream — flagged here.</div>
+  <div class="decision"><strong><code>package.json</code>'s version becomes <code>1.1.17</code></strong>, adopting the already-published Marketplace value rather than rolling it back. Resolves a gap scope-clarifications.md left open ("include if trivial," no direction chosen).</div>
+  <div class="decision"><strong>AMD module contract preserved behaviorally, not byte-for-byte</strong> — <code>tsc</code>'s AMD emit for <code>export function create(...)</code> populates a generated <code>exports</code> object instead of literally <code>return { create }</code>. The module value still exposes a callable <code>.create(context)</code>, which is the actual contract <code>toolbar.html</code> depends on.</div>
+  <div class="decision"><strong><code>strict: true</code> from the start, JSDoc/<code>checkJs</code> bootstrap → single-shot <code>.ts</code> rename</strong> — restates the binding tsconfig/sequencing target already decided upstream.</div>
+
+  <h2>Open Questions / Risks</h2>
+  <div class="risk"><strong>AMD-emit shape change</strong> (see Key Decisions) — low risk, but the manual checklist must exercise <code>VSS.require(["scripts/app"], ...)</code> end to end, not just individual functions.</div>
+  <div class="risk"><strong>Build-wiring dual-verification is a hard acceptance gate</strong> — both <code>grunt package-dev</code> and <code>grunt package-release</code> must independently invoke <code>tsc</code>; partial wiring is a silent-failure mode with zero test coverage to catch it.</div>
+  <div class="risk"><strong>VSS SDK's bundled <code>.d.ts</code> shape is unverified</strong> — <code>node_modules</code> isn't installed yet. Expect <code>any</code>/assertion fallback on the loosely-typed template <code>.fields</code> dictionary and JSON-Patch construction.</div>
+  <div class="risk"><strong>The promise-chain fix is a genuine behavior change</strong>, not risk-free — teams relying on (or coincidentally unaffected by) the current racy ordering could see different link graphs afterward. Checklist must specifically compare before/after link graphs for a 3+-template work item.</div>
+</section>
+
+<nav class="toc">
+  Contents:
+  <a href="#goal">Goal</a> ·
+  <a href="#stories">User Stories</a> ·
+  <a href="#requirements">Core Requirements</a> ·
+  <a href="#reuse">Reusable Components</a> ·
+  <a href="#approach">Technical Approach</a> ·
+  <a href="#guidance">Implementation Guidance</a> ·
+  <a href="#scope">Out of Scope</a> ·
+  <a href="#success">Success Criteria</a>
+</nav>
+
+<main>
+
+<h2 id="goal">Goal</h2>
+<div class="card">
+  <p>Migrate <code>src/scripts/app.js</code> to statically-typed TypeScript (<code>strict: true</code>) with zero required changes to <code>toolbar.html</code> or <code>vss-extension.json</code>, while fixing the promise-chain and implicit-global bugs the type system forces into the open, and folding in the roadmap's already-scoped Phase 1 cleanup items — all verified through a manual side-by-side <code>.vsix</code> checklist in place of automated tests.</p>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="story">As an Azure DevOps user clicking "Create linked tasks," I want the exact same template-driven child-work-item creation behavior I have today, so that the migration is invisible to me except one correction: templates now create and link in the correct sequential order (previously racy).</div>
+<div class="story">As the maintainer, I want compile-time type checking across the REST client / template / work-item surface, so that future template-filtering changes fail fast in the editor instead of silently at runtime with no test suite to catch them.</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<div class="card">
+<table>
+<tr><th>#</th><th>Category</th><th>Requirement</th></tr>
+<tr><td>1</td><td>Build</td><td>Add <code>typescript</code> + <code>@types/q</code> devDependencies</td></tr>
+<tr><td>2</td><td>Build</td><td>Create <code>src/tsconfig.json</code> — <code>module: amd</code>, <code>strict: true</code>, <code>types: ["vss-web-extension-sdk"]</code>, in-place emission</td></tr>
+<tr><td>3</td><td>Build</td><td>New <code>grunt-exec</code> target running <code>tsc -p tsconfig.json</code></td></tr>
+<tr><td>4</td><td>Build</td><td>Prepend the <code>tsc</code> target into <strong>both</strong> <code>package-dev</code> and <code>package-release</code> task chains</td></tr>
+<tr><td>5</td><td>Typing</td><td>Hand-written ambient <code>declare const VSS</code> (4 methods only)</td></tr>
+<tr><td>6</td><td>Typing</td><td>Type AMD deps via SDK's bundled <code>typings/</code> + <code>@types/q</code></td></tr>
+<tr><td>7</td><td>Sequencing</td><td>JSDoc/<code>checkJs</code> bootstrap on <code>.js</code>, then single-shot rename to <code>.ts</code></td></tr>
+<tr><td>8</td><td>Bug fix</td><td>Add missing <code>return</code>s in <code>createChildFromTemplate</code>/<code>createWorkItem</code> (promise-chain fix)</td></tr>
+<tr><td>9</td><td>Bug fix</td><td><code>app.js:459</code> — add <code>const</code> to <code>for...of</code> loop var</td></tr>
+<tr><td>10</td><td>Bug fix</td><td><code>app.js:526</code> — resolve <code>getTeamSettings</code> before reading <code>.bugsBehavior</code></td></tr>
+<tr><td>11</td><td>Cleanup</td><td>Delete dead code: 3 unused imports + <code>getWorkItemFormService</code> + orphaned <code>_WorkItemServices</code></td></tr>
+<tr><td>12</td><td>Cleanup</td><td>Consolidate 4 logging functions into 1 typed utility</td></tr>
+<tr><td>13</td><td>Cleanup</td><td>Rename <code>linkImtes</code> → <code>linkItems</code> (definition + ~8 call sites)</td></tr>
+<tr><td>14</td><td>Cleanup</td><td>Align <code>package.json</code> version to <code>1.1.17</code></td></tr>
+<tr><td>15</td><td>Compat</td><td>Preserve callable <code>create(context)</code> module contract</td></tr>
+<tr><td>16</td><td>Compat</td><td>Preserve every packaging.md convention (task naming, override files, vendoring, addressable entries)</td></tr>
+</table>
+</div>
+
+<h2 id="reuse">Reusable Components</h2>
+<div class="cols">
+  <div class="card">
+    <h3 style="margin-top:0">Existing Patterns to Follow</h3>
+    <ul>
+      <li><span class="chip">grunt-exec target shape</span> — match <code>exec.package_dev</code>'s <code>command</code>/<code>stdout</code>/<code>stderr</code> convention</li>
+      <li><span class="chip">packaging.md</span> — authoritative naming/wiring reference</li>
+      <li><span class="chip">SDK bundled typings/</span> — no hand-rolled REST client types</li>
+      <li><span class="chip">@types/q</span> — current, TS 4.5+ compatible</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">New Components (justified)</h3>
+    <ul>
+      <li><code>src/tsconfig.json</code> — no prior TS config exists</li>
+      <li>Ambient <code>declare const VSS</code> — no AMD-typed analog for the script-tag global</li>
+      <li>Consolidated logger — collapses 4 near-duplicates, not new capability</li>
+      <li>2 missing <code>return</code> statements — additive fix, not a component</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="approach">Technical Approach</h2>
+<div class="card">
+  <p><strong>Sequencing:</strong> (1) tsconfig/devDependencies/ambient decl first, without touching <code>app.js</code>. (2) JSDoc/<code>checkJs</code> bootstrap — bug fixes and cleanup happen here, reversible as <code>.js</code>. (3) Single-shot rename to <code>app.ts</code>. (4) Wire + verify <code>tsc</code> in both packaging paths. (5) <code>npm install</code> to materialize <code>node_modules</code> and confirm SDK typings cover the actual response shapes read.</p>
+  <p><strong>Module contract:</strong> each AMD dependency becomes a TS <code>import</code> whose specifier string matches today's <code>define([...])</code> entry exactly, preserving runtime module-id resolution. <code>VSS</code> stays outside the import list (global, per ambient declaration).</p>
+  <p><strong>Data flow:</strong> unchanged shape — <code>create(context)</code> → <code>AddTasks</code> → typed REST calls → template fetch/validate/filter → JSON-Patch construction → <code>createWorkItem</code> → <code>linkItems</code>. The promise-chain fix changes timing only.</p>
+</div>
+
+<h2 id="guidance">Implementation Guidance</h2>
+<div class="card">
+  <h3 style="margin-top:0">Verification Approach (no automated tests — TDD gate adapted)</h3>
+  <p>Each implementation step group gets a <strong>manual verification checklist of 2-8 items</strong>, exercised side-by-side against a real/sandbox Azure DevOps org's pre- vs. post-migration <code>.vsix</code>, mirroring the standard per-group test-count guidance without writing test code.</p>
+  <p>Must cover at minimum: <code>IsValidTemplateWIT</code>/<code>IsValidTemplateTitle</code> (JSON + legacy filter syntax), <code>SortTemplates</code> ordering, the promise-chain fix (3+ templates, sequential creation + <code>justCreatedTasks</code> ordering), all six <code>linkTo</code> directive branches, the <code>AsTasks</code>/<code>AsRequirements</code> <code>bugsBehavior</code> branches, and the <code>VSS.require</code> module-resolution path end to end. Build-pipeline dual-invocation is a separate, explicit checklist item.</p>
+  <details>
+    <summary>Standards Compliance</summary>
+    <ul>
+      <li><code>build-tooling/packaging.md</code> — task naming, override-file pattern, <code>--rev-version</code> dev-only, <code>private: true</code>, vendoring, addressable entries</li>
+      <li><code>global/minimal-implementation.md</code> — no speculative stubs; ambient <code>VSS</code> covers only called methods; no UI-feedback scaffolding added</li>
+      <li><code>global/coding-style.md</code> — no dead code, DRY (logging consolidation)</li>
+      <li><code>global/error-handling.md</code> — no new error-handling scope beyond what the return-statement fixes require</li>
+    </ul>
+  </details>
+</div>
+
+<h2 id="scope">Out of Scope</h2>
+<div class="cols">
+  <div class="card" style="border-color:var(--crit)">
+    <h3 style="margin-top:0">Excluded</h3>
+    <ul>
+      <li>Automated test framework (deferred to Phase 2)</li>
+      <li>New features, UI feedback (spinner/dialog/toast)</li>
+      <li><code>azure-devops-extension-sdk</code> adoption</li>
+      <li>CI/CD pipeline setup</li>
+      <li><code>Q</code> → native <code>Promise</code>/<code>async</code>/<code>await</code> conversion</li>
+      <li>SDK version-string doc reconciliation (<code>^1.104.0</code> vs. <code>1.110.0</code>)</li>
+      <li><code>AddTasks</code>'s own top-level return (cross-work-item fire-and-forget)</li>
+    </ul>
+  </div>
+  <div class="card" style="border-color:var(--ok)">
+    <h3 style="margin-top:0">In Scope (recap)</h3>
+    <ul>
+      <li>TS tooling + dual Grunt wiring</li>
+      <li><code>app.js</code> → <code>app.ts</code> port, <code>strict: true</code></li>
+      <li>3 bundled bug fixes</li>
+      <li>Dead code, logging, typo, version cleanup</li>
+      <li>Manual <code>.vsix</code> verification checklist</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+  <ul>
+    <li><code>tsc -p tsconfig.json</code> compiles with zero errors under <code>strict: true</code></li>
+    <li><code>grunt package-dev</code> and <code>grunt package-release</code> both independently invoke <code>tsc</code>, verified by build-log inspection</li>
+    <li><code>toolbar.html</code>/<code>vss-extension.json</code> unchanged; <code>VSS.require</code> resolves and calls <code>.create(context)</code></li>
+    <li>Full manual checklist passes, with the one intentional documented behavior change (sequential ordering)</li>
+    <li>Zero remaining references to <code>linkImtes</code>, the 3 dead imports, <code>_WorkItemServices</code>, or the 4 separate logging functions</li>
+    <li><code>package.json</code> version reads <code>1.1.17</code></li>
+    <li>No user-facing behavior change except the corrected task-creation ordering</li>
+  </ul>
+</div>
+
+</main>
+
+</body>
+</html>

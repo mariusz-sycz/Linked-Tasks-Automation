@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Plan — Speed Up Task Creation</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+h3 { font-size:14px; margin:0; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:100px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+
+.step.todo::before  { content:"\2610  "; color:var(--dim); }
+.step.done::before  { content:"\2611  "; color:var(--ok); }
+.step.done          { color:var(--dim); }
+.group.todo .g-badge::after { content:"pending"; }
+.group.done .g-badge::after { content:"\2713 completed"; color:var(--ok); }
+.g-badge { font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 8px;
+  border-radius:99px; background:var(--warn-soft); color:var(--warn); margin-left:8px; }
+.group.done .g-badge { background:var(--ok-soft); color:var(--ok); }
+
+.group { }
+.g-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.g-meta { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+.chip { display:inline-block; font-size:11.5px; background:var(--bg); border:1px solid var(--border);
+  border-radius:6px; padding:2px 7px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.deps { font-size:12.5px; color:var(--dim); margin:4px 0; }
+.deps b { color:var(--text); }
+ul.steps { list-style:none; padding-left:2px; margin:8px 0; }
+ul.steps li { padding:3px 0; font-size:13px; }
+ul.checklist { margin:6px 0 6px 18px; padding:0; font-size:12.5px; color:var(--dim); }
+ul.checklist li { margin:2px 0; }
+.acc { background:var(--accent-soft); border-radius:8px; padding:8px 12px; margin-top:8px; font-size:12.5px; }
+.acc b { color:var(--accent); }
+.gate { border-left:4px solid var(--crit); }
+.gate-label { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 8px; border-radius:99px; background:var(--crit-soft); color:var(--crit); margin-left:6px; }
+.wave { font-size:12px; color:var(--dim); margin:10px 0 4px; text-transform:uppercase; letter-spacing:.04em; }
+.arrow-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0; font-size:13px; }
+.arrow-row .box { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px 10px; }
+.arrow-row .arrow { color:var(--dim); }
+.parallel-box { display:flex; gap:8px; flex-wrap:wrap; border:1px dashed var(--border); border-radius:8px; padding:8px; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="spec.html">Spec</a>
+  <span class="here">Plan</span>
+  <a href="implementation-plan.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+
+<header>
+  <h1>Implementation Plan: Speed Up Task Creation, Progress Feedback, Popup-Close Reliability, Modularize app.ts</h1>
+  <p style="color:var(--dim); font-size:12.5px;">Generated 2026-08-08 &middot; <span class="badge">Phase 7</span> High-risk &middot; Manual verification only (no automated test framework)</p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>10</b><span>task groups</span></div>
+  <div class="tile"><b>59</b><span>total steps</span></div>
+  <div class="tile"><b>49&ndash;59</b><span>manual checks</span></div>
+  <div class="tile"><b>2</b><span>hard gates</span></div>
+  <div class="tile"><b>4</b><span>parallel Phase B groups</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>10 task groups: 4 gated Phase A groups (behavior-preserving <code>app.ts</code> split into 10 files), 4 independently-buildable Phase B component groups, 1 Phase B integration group, 1 final gap-review group. 59 steps total, ~49&ndash;59 manual verification checks &mdash; no automated test framework exists (see <code>implementation/tdd-red-gate.md</code>). Group 1 (extract <code>logging.ts</code>/<code>types.ts</code>/<code>context.ts</code>) is a hard gate that smoke-tests AMD cross-file imports before Groups 2&ndash;4 relocate the remaining 7 Phase-A files; Group 4's full-split smoke test is the hard gate before any Phase B group (5&ndash;9) may start. Phase B's four component groups build independently in parallel once Group 4 passes, converging in Group 9's orchestrator integration, then Group 10 closes gaps against the spec's 9 success criteria.</p>
+
+  <h2>Key Decisions</h2>
+  <table>
+    <tr><td>Grouped Phase A by DAG tiers, not one group per file</td><td>keeps each group's smoke test meaningful (2&ndash;4 files/group) while isolating the AMD-import smoke test as its own gate</td></tr>
+    <tr><td>4 independent Phase B component groups (5&ndash;8), converged by Group 9</td><td>mirrors the spec's own module-boundary dependency table exactly &mdash; no re-derivation</td></tr>
+    <tr><td>Live REST-endpoint capture placed as step 5.1</td><td>hard implementation-time dependency (Core Requirement 9) surfaced early, not mid-implementation</td></tr>
+    <tr><td>Failure-aggregation threading (Req 12) lives in Group 9, not Group 5</td><td>it threads results into <code>orchestrator.ts</code>'s <code>AddTasks</code>, even though edits land in <code>workItemCreation.ts</code> (shared file, serialized 5&rarr;9)</td></tr>
+    <tr><td>"Write tests" replaced with "define manual verification checklist"</td><td>project-wide adaptation &mdash; zero automated test framework exists</td></tr>
+  </table>
+
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li>Groups 5&ndash;8 run concurrently once Group 4 passes, but Group 5 and Group 9 both touch <code>workItemCreation.ts</code> &mdash; already serialized via Group 9's dependency on Group 5.</li>
+    <li>Group 9 is the highest-risk single group (8 checks; concurrency rewrite + dispatch split + failure threading at once) &mdash; first place to look if Phase 9's Green Gate re-walk finds a regression.</li>
+    <li>Group 10 (this plan's Test Review &amp; Gap Analysis) is distinct from, and precedes, the orchestrator's separate Phase 9 TDD Green Gate re-walk (<code>tdd-red-gate.md</code>) &mdash; do not conflate the two.</li>
+    <li>~49&ndash;59 total manual checks is a large manual-only regression net, accepted given zero automated test framework exists (spec Requirement 17).</li>
+  </ul>
+</section>
+
+<h2>Execution Order &amp; Parallelism</h2>
+<div class="card">
+  <div class="wave">Phase A &mdash; sequential, each gated on the previous</div>
+  <div class="arrow-row">
+    <span class="box">Group 1<br><small>AMD smoke test</small></span>
+    <span class="arrow">&rarr;</span>
+    <span class="box">Group 2<br><small>filters/childTypes/templates</small></span>
+    <span class="arrow">&rarr;</span>
+    <span class="box">Group 3<br><small>builder/workItemCreation</small></span>
+    <span class="arrow">&rarr;</span>
+    <span class="box">Group 4<br><small>orchestrator + gate</small></span>
+  </div>
+  <div class="wave">Phase B &mdash; 4 groups parallelizable once Group 4 passes</div>
+  <div class="arrow-row">
+    <span class="arrow">Group 4 &rarr;</span>
+    <div class="parallel-box">
+      <span class="box">Group 5<br><small>auth token + keepalive</small></span>
+      <span class="box">Group 6<br><small>template cache</small></span>
+      <span class="box">Group 7<br><small>template classifier</small></span>
+      <span class="box">Group 8<br><small>progress dialogs</small></span>
+    </div>
+    <span class="arrow">&rarr;</span>
+    <span class="box">Group 9<br><small>orchestrator integration</small></span>
+    <span class="arrow">&rarr;</span>
+    <span class="box">Group 10<br><small>gap review</small></span>
+  </div>
+</div>
+
+<h2>Task Groups</h2>
+
+<section data-group="1" class="group done card gate">
+  <div class="g-head">
+    <h3>Group 1: AMD Smoke Test &mdash; Extract logging.ts, types.ts, context.ts <span class="gate-label">hard gate</span></h3>
+    <span class="g-badge"></span>
+  </div>
+  <div class="deps"><b>Dependencies:</b> None</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/logging.ts</span><span class="chip">src/scripts/types.ts</span>
+    <span class="chip">src/scripts/context.ts</span><span class="chip">src/scripts/app.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="1.1" class="step done">Define 5-item manual verification checklist</li>
+    <li data-step="1.2" class="step done">Extract logging.ts (logInfo/logError, app.ts:603-609)</li>
+    <li data-step="1.3" class="step done">Extract types.ts (WitClient/WorkClient/WorkItemFields, app.ts:10-20)</li>
+    <li data-step="1.4" class="step done">Extract context.ts (export let ctx: WebContext, app.ts:22)</li>
+    <li data-step="1.5" class="step done">Update app.ts to import from the 3 new files</li>
+    <li data-step="1.6" class="step done">Compile via tsc -p tsconfig.json</li>
+    <li data-step="1.7" class="step done">Run grunt serve + live manual click-through smoke test</li>
+  </ul>
+  <ul class="checklist">
+    <li>tsc compiles cleanly with app.ts + 3 new files</li>
+    <li>grunt serve starts without error</li>
+    <li>Live click "Create linked tasks" produces identical network calls vs. baseline</li>
+    <li>Console output matches pre-change baseline</li>
+    <li>Created/linked work items match pre-change baseline exactly</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> AMD cross-file import proven under module:"amd"; no behavior change observed. Groups 2&ndash;4 blocked until all 5 checks pass.</div>
+</section>
+
+<section data-group="2" class="group done card">
+  <div class="g-head"><h3>Group 2: Extract templateFilters.ts, childTypes.ts, templates.ts</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 1</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/templateFilters.ts</span><span class="chip">src/scripts/childTypes.ts</span>
+    <span class="chip">src/scripts/templates.ts</span><span class="chip">src/scripts/app.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="2.1" class="step done">Define 5-item manual verification checklist</li>
+    <li data-step="2.2" class="step done">Extract templateFilters.ts (checkRules, IsValidTemplateWIT, matchField, IsValidTemplateTitle, IsPropertyValid, replaceReferenceToParentField, extractJSON, IsJsonString)</li>
+    <li data-step="2.3" class="step done">Extract childTypes.ts (GetChildTypes, findWorkTypeCategory) &mdash; preserve bugsBehavior bug &amp; all 10 VSS.getWebContext() sites</li>
+    <li data-step="2.4" class="step done">Extract templates.ts (getTemplate, getTemplates, SortTemplates)</li>
+    <li data-step="2.5" class="step done">Update app.ts imports</li>
+    <li data-step="2.6" class="step done">Compile via tsc</li>
+    <li data-step="2.7" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>tsc compiles cleanly with 7 files</li>
+    <li>grunt serve smoke test parity vs. Group 1 baseline</li>
+    <li>bugsBehavior bug unchanged (spot-check)</li>
+    <li>All 10 VSS.getWebContext() sites preserved verbatim</li>
+    <li>SortTemplates ordering unchanged</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> 3 files relocated verbatim; app.ts still contains AddTasks/createWorkItem/etc. temporarily; no import cycle; 5 checks pass.</div>
+</section>
+
+<section data-group="3" class="group done card">
+  <div class="g-head"><h3>Group 3: Extract templateBuilder.ts, workItemCreation.ts</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 2</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/templateBuilder.ts</span><span class="chip">src/scripts/workItemCreation.ts</span>
+    <span class="chip">src/scripts/app.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="3.1" class="step done">Define 5-item manual verification checklist</li>
+    <li data-step="3.2" class="step done">Extract templateBuilder.ts (createWorkItemFromTemplate, app.ts:231-282)</li>
+    <li data-step="3.3" class="step done">Extract workItemCreation.ts (createWorkItem, createChildFromTemplate, getRelatedWorkItems, linkItems)</li>
+    <li data-step="3.4" class="step done">Update app.ts imports</li>
+    <li data-step="3.5" class="step done">Compile via tsc</li>
+    <li data-step="3.6" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>tsc compiles cleanly with 9 files</li>
+    <li>grunt serve smoke test parity</li>
+    <li>createWorkItemFromTemplate still reads ctx.user.uniqueName correctly</li>
+    <li>All six linkTo branches preserved in identical order</li>
+    <li>Fire-and-forget linkItems semantics preserved (not accidentally awaited)</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> 2 files relocated verbatim; six linkTo branches and fire-and-forget semantics unchanged; 5 checks pass.</div>
+</section>
+
+<section data-group="4" class="group done card gate">
+  <div class="g-head"><h3>Group 4: orchestrator.ts + Finalize app.ts &mdash; Full Phase A Gate <span class="gate-label">hard gate</span></h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 3</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/orchestrator.ts</span><span class="chip">src/scripts/app.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="4.1" class="step done">Define 7-item manual verification checklist (full-split regression gate)</li>
+    <li data-step="4.2" class="step done">Extract orchestrator.ts (AddTasks, app.ts:24-70) wired only to Phase-A files</li>
+    <li data-step="4.3" class="step done">Finalize app.ts to thin entry point (create() only)</li>
+    <li data-step="4.4" class="step done">Compile full 10-file structure</li>
+    <li data-step="4.5" class="step done">Run full live grunt serve smoke test</li>
+    <li data-step="4.6" class="step done">Confirm all 7 checklist items pass</li>
+  </ul>
+  <ul class="checklist">
+    <li>tsc compiles cleanly, all 10 Phase A files, zero Phase B files yet</li>
+    <li>Network calls identical to pre-refactor baseline</li>
+    <li>Console output identical to pre-refactor baseline</li>
+    <li>Created/linked work items identical to pre-refactor baseline</li>
+    <li>app.ts path/AMD id/create() signature unchanged; toolbar.html call site works unmodified</li>
+    <li>No circular imports among all 10 files</li>
+    <li>bugsBehavior bug &amp; all VSS.getWebContext() sites unchanged</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> Full Phase A (10 files) behaves identically to pre-refactor baseline. Groups 5&ndash;9 (all of Phase B) blocked until all 7 checks pass.</div>
+</section>
+
+<section data-group="5" class="group done card">
+  <div class="g-head"><h3>Group 5: Auth Token Provider + Keepalive Fetch Client</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 4</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/authTokenProvider.ts</span><span class="chip">src/scripts/keepaliveFetchClient.ts</span>
+    <span class="chip">src/scripts/workItemCreation.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="5.1" class="step done"><b>CHECKPOINT</b>: capture live REST endpoint shape via devtools against the live ADO org before writing any code</li>
+    <li data-step="5.2" class="step done">Define 6-item manual verification checklist</li>
+    <li data-step="5.3" class="step done">Build authTokenProvider.ts (VSS.getAccessToken() wrapper)</li>
+    <li data-step="5.4" class="step done">Build keepaliveFetchClient.ts (fetch with keepalive:true per captured shape)</li>
+    <li data-step="5.5" class="step done">Wire into workItemCreation.ts, replacing witClient create/update calls</li>
+    <li data-step="5.6" class="step done">Compile via tsc</li>
+    <li data-step="5.7" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>authTokenProvider resolves a valid bearer token</li>
+    <li>Create call matches captured URL/api-version/headers, keepalive:true visible</li>
+    <li>Link call matches captured URL/api-version/headers, keepalive:true visible</li>
+    <li>Create JSON-Patch body byte-identical to existing shape</li>
+    <li>Link JSON-Patch body byte-identical to existing document array shape</li>
+    <li>Read-only calls (getTeamSettings, getWorkItem, etc.) untouched, still on wrapped client</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> 2 new files created fresh; workItemCreation.ts create/link calls use keepalive fetch with live-captured shape; 6 checks pass.</div>
+</section>
+
+<section data-group="6" class="group done card">
+  <div class="g-head"><h3>Group 6: Template Cache</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 4</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/templateCache.ts</span><span class="chip">src/scripts/templates.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="6.1" class="step done">Define 5-item manual verification checklist</li>
+    <li data-step="6.2" class="step done">Build templateCache.ts (localStorage read/write/TTL=4h, keyed by project.id/team.id/childTypes)</li>
+    <li data-step="6.3" class="step done">Wire cache-check-first wrapper into templates.ts</li>
+    <li data-step="6.4" class="step done">Compile via tsc</li>
+    <li data-step="6.5" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>First invocation (miss) fetches then writes cache with timestamp</li>
+    <li>Second invocation within TTL skips REST round trip entirely</li>
+    <li>Cache key correctly scoped, no collisions across child-type combos</li>
+    <li>Stale (&gt;4h) entry treated as a miss and re-fetched</li>
+    <li>Cache-served templates produce identical created work items</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> templateCache.ts wired into templates.ts; TTL=4h; no clear-cache affordance (by design); 5 checks pass; Success Criterion 1 satisfied.</div>
+</section>
+
+<section data-group="7" class="group done card">
+  <div class="g-head"><h3>Group 7: Template Classifier</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 4</div>
+  <div class="g-meta"><span class="chip">src/scripts/templateClassifier.ts</span></div>
+  <ul class="steps">
+    <li data-step="7.1" class="step done">Define 4-item manual verification checklist</li>
+    <li data-step="7.2" class="step done">Build templateClassifier.ts (six-rule-name scan via extractJSON reuse)</li>
+    <li data-step="7.3" class="step done">Compile via tsc</li>
+    <li data-step="7.4" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>PreviouslyCreatedTask (or other 5 rule names) classifies as ordered</li>
+    <li>ToAllOtherChilds classifies as independent</li>
+    <li>No-linkTo template classifies as independent</li>
+    <li>Rule-name matching is case-insensitive</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> templateClassifier.ts reuses extractJSON, no duplicate JSON-extraction logic; 4 checks pass.</div>
+</section>
+
+<section data-group="8" class="group done card">
+  <div class="g-head"><h3>Group 8: Progress Dialog Controller</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Group 4</div>
+  <div class="g-meta"><span class="chip">src/scripts/progressDialogController.ts</span></div>
+  <ul class="steps">
+    <li data-step="8.1" class="step done">Define 4-item manual verification checklist</li>
+    <li data-step="8.2" class="step done">Build progressDialogController.ts (start-dialog fire-and-forget + completion-dialog allSettled-gated)</li>
+    <li data-step="8.3" class="step done">Compile via tsc</li>
+    <li data-step="8.4" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>Start dialog opens fire-and-forget, not awaited</li>
+    <li>Completion dialog reports "N of N" on all-success</li>
+    <li>Completion dialog lists failed templates on partial failure</li>
+    <li>No auto-dismiss/timeout logic (ADR-004, one-click-dismiss only)</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> Both functions implemented per clarification Q4; 4 checks pass.</div>
+</section>
+
+<section data-group="9" class="group done card">
+  <div class="g-head"><h3>Group 9: Orchestrator Integration &mdash; Parallelization, Dispatch Split, Wiring, Failure Aggregation</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> Groups 5, 6, 7, 8</div>
+  <div class="g-meta">
+    <span class="chip">src/scripts/orchestrator.ts</span><span class="chip">src/scripts/workItemCreation.ts</span>
+  </div>
+  <ul class="steps">
+    <li data-step="9.1" class="step done">Define 8-item manual verification checklist (highest-risk group)</li>
+    <li data-step="9.2" class="step done">Parallelize getTeamSettings/getWorkItem via Promise.all</li>
+    <li data-step="9.3" class="step done">Call Template Classifier to split fetched templates into independent/ordered</li>
+    <li data-step="9.4" class="step done">Dispatch independent group concurrently; ordered group sequentially (native Promises replacing the current chain)</li>
+    <li data-step="9.5" class="step done">Wire Progress Dialog Controller (start fire-and-forget; completion on Promise.allSettled per work item)</li>
+    <li data-step="9.6" class="step done">Thread success/failure results from workItemCreation.ts up to AddTasks's Promise.allSettled</li>
+    <li data-step="9.7" class="step done">Compile via tsc</li>
+    <li data-step="9.8" class="step done">Execute checklist</li>
+  </ul>
+  <ul class="checklist">
+    <li>getTeamSettings/getWorkItem fire near-simultaneously, not nested</li>
+    <li>Start dialog appears immediately, once per work item ID</li>
+    <li>Independent-group creates overlap in devtools</li>
+    <li>Ordered-group creates stay sequential; justCreatedTasks indexing matches baseline</li>
+    <li>Fire-and-forget linkItems calls remain non-awaited</li>
+    <li>Completion dialog reports correct N of M with accurate failure list</li>
+    <li>Forced failure surfaces in completion dialog; console logging still occurs</li>
+    <li>Full click-through (2 ordered templates) matches pre-Phase-B baseline</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> Success Criteria 2, 3, 5, 6 verified; fire-and-forget semantics intact; failure aggregation correct; 8 checks pass.</div>
+</section>
+
+<section data-group="10" class="group done card">
+  <div class="g-head"><h3>Group 10: Test Review &amp; Gap Analysis</h3><span class="g-badge"></span></div>
+  <div class="deps"><b>Dependencies:</b> All previous groups (1&ndash;9)</div>
+  <div class="g-meta"><span class="chip">None (review only)</span></div>
+  <ul class="steps">
+    <li data-step="10.1" class="step done">Review the 49 manual checks executed in Groups 1&ndash;9</li>
+    <li data-step="10.2" class="step done">Cross-check spec's 9 numbered Success Criteria against what's been verified</li>
+    <li data-step="10.3" class="step done">Define up to 10 additional strategic manual checks closing gaps</li>
+    <li data-step="10.4" class="step done">Execute the additional checks (max 10 added)</li>
+    <li data-step="10.5" class="step done">Confirm Success Criteria 1&ndash;9 all satisfied; document accepted gaps</li>
+  </ul>
+  <div class="acc"><b>Acceptance:</b> ~49&ndash;59 total checks pass; every Success Criterion traced to a passing check; no scope creep (bugsBehavior, ctx inconsistency, version bumps, test framework all untouched).</div>
+</section>
+
+<h2>Standards Compliance</h2>
+<div class="card">
+  <table>
+    <tr><th>Standard</th><th>Applied as</th></tr>
+    <tr><td><code>global/coding-style.md</code></td><td>relocated/new functions match nearest sibling's naming convention; no dead code left by extraction</td></tr>
+    <tr><td><code>global/commenting.md</code></td><td>inline comments for new caching/keepalive/dialog/classifier design choices, following existing file convention</td></tr>
+    <tr><td><code>global/error-handling.md</code></td><td>Keepalive Fetch Client &amp; failure-aggregation code use logInfo/logError</td></tr>
+    <tr><td><code>global/minimal-implementation.md</code></td><td>Phase-B files created fresh with an immediate caller, not pre-created as empty skeletons</td></tr>
+    <tr><td><code>build-tooling/packaging.md</code></td><td>no Grunt/manifest changes needed &mdash; confirmed out of scope</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Speed Up Task Creation</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+h3 { font-size:13.5px; margin-top:20px; color:var(--text); }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:110px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.toc { font-size:13px; margin:10px 0 20px; color:var(--dim); }
+.toc a { color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:700px) { .grid2 { grid-template-columns:1fr; } }
+.grid2 h3 { margin-top:0; }
+ul.tight li { margin-bottom:6px; }
+.pill-row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+.pill { background:var(--accent-soft); color:var(--accent); border-radius:99px; padding:2px 10px; font-size:12px; }
+.pill.reuse { background:var(--ok-soft); color:var(--ok); }
+.pill.new { background:var(--warn-soft); color:var(--warn); }
+.filecode { font-size:12px; }
+.phase-label { color:var(--dim); font-size:11px; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>Speed Up Task Creation, Progress Feedback, Popup-Close Reliability, Modularize app.ts</h1>
+  <p style="color:var(--dim); margin-top:4px;">Generated 2026-08-08 · Risk level: High</p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>17</b><span>core requirements</span></div>
+  <div class="tile"><b>15</b><span>files (10 A + 5 B)</span></div>
+  <div class="tile"><b>6</b><span>new components</span></div>
+  <div class="tile"><b>2</b><span>phases (A → B)</span></div>
+  <div class="tile"><b>High</b><span>risk level</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0;">TL;DR</h2>
+  <p>Split the single 629-line <code>src/scripts/app.ts</code> into <strong>15 flat files</strong> under <code>src/scripts/</code> — <strong>10 files in Phase A</strong> (existing code relocated verbatim, a pure behavior-preserving refactor, verified independently first) and <strong>5 new files in Phase B</strong> (created fresh, not pre-created as empty skeletons) — then implement 5 behavioral changes into that structure: <code>localStorage</code> template caching (4h TTL), <code>fetch(keepalive:true)</code> for create/link REST calls (partial popup-close survival), two <code>openMessageDialog</code> calls per work item (start + <code>Promise.allSettled</code>-gated completion with a partial-failure summary), parallelized <code>getTeamSettings</code>/<code>getWorkItem</code>, and a template classifier splitting per-template creates into independent (parallel) and ordered (<code>justCreatedTasks</code>-dependent, sequential) groups. <code>app.ts</code> keeps its exact path, AMD module id <code>scripts/app</code>, and <code>create(context): void</code> export. No test framework exists; verification is manual only, against a live Azure DevOps org, reusing the Phase 3 manual reproduction procedure as the Green-gate check.</p>
+
+  <h3>Key Decisions</h3>
+  <ul class="tight">
+    <li><strong>Modularize first, then add behavior</strong> (Critical Decision 1, scope-clarifications.md) — separates refactor risk from behavioral risk into two independently-verifiable passes, the only real bisection lever with zero test coverage.</li>
+    <li><strong>Shared <code>ctx: WebContext</code> becomes <code>export let ctx</code></strong> in a new <code>context.ts</code>, read directly by <code>orchestrator.ts</code>/<code>templateBuilder.ts</code>/<code>templates.ts</code> — no parameter-threading refactor of functions the research called "untouched."</li>
+    <li><strong>Extraction is incremental:</strong> <code>logging.ts</code>, <code>types.ts</code>, <code>context.ts</code> first, to smoke-test the never-before-exercised AMD cross-file <code>import</code> pattern in this repo before extracting the rest.</li>
+    <li><strong>Native <code>Promise</code>/<code>async</code>/<code>await</code></strong> for all new/touched code; <code>Q</code> remains only in relocated-but-otherwise-untouched pure helpers (requirements.md Q2).</li>
+    <li><strong>"Ordered group" sequencing is keyed on <code>justCreatedTasks.push()</code> timing</strong> (synchronous, inside the create-success callback), not on link-write completion — preserves the pre-existing, already-incomplete waiting semantics rather than accidentally fixing them.</li>
+    <li><strong>Exact REST endpoint/<code>api-version</code>/headers</strong> for <code>createWorkItem</code>/<code>updateWorkItem</code> are not derivable from the repo and must be captured via live devtools network inspection at implementation time (user has confirmed live ADO org access).</li>
+    <li><strong>Preserve exactly, do not fix:</strong> the <code>GetChildTypes</code> <code>bugsBehavior</code> enum-vs-string-literal bug, and the <code>ctx</code>-vs-<code>VSS.getWebContext()</code> inconsistency (<code>GetChildTypes</code> calls <code>VSS.getWebContext()</code> directly at <strong>10 call sites</strong>, <code>createWorkItem</code> at <strong>1</strong>, instead of reusing <code>ctx</code> — verified against the current source; preserve every call site exactly).</li>
+  </ul>
+
+  <h3>Open Questions / Risks</h3>
+  <ul class="tight">
+    <li>The <code>openMessageDialog</code> API has no programmatic close handle (confirmed against SDK typings, ADR-004) — dialogs are one-click-dismiss, not auto-closing; accepted, already-communicated limitation, not an open implementation question.</li>
+    <li>Popup-close survival remains <strong>partial</strong>, not a full guarantee: any ordered-group create not yet dispatched at teardown, and any not-yet-dispatched link-to-parent/<code>ToAllOtherChilds</code> call, remain exposed (ADR-002, clarification Q2) — already accepted, re-flagged here so the Green-gate check verifies the narrower outcome, not 100% survival.</li>
+    <li>The 4-hour <code>localStorage</code> TTL has no manual "clear cache" affordance — already-accepted trade-off (ADR-003), not a new decision.</li>
+    <li>AMD/RequireJS cross-file relative <code>import</code> resolution has never been exercised in this repo (previously one <code>.ts</code> file) — the incremental extraction order exists specifically to surface this risk early and cheaply.</li>
+    <li>Exact REST endpoint/<code>api-version</code>/headers for the Keepalive Fetch Client must be captured live before that component can be implemented — flagged as a hard dependency of Core Requirement 8, not guessable from source.</li>
+  </ul>
+</section>
+
+<nav class="toc">
+  Contents:
+  <a href="#requirements">Requirements</a> ·
+  <a href="#stories">User Stories</a> ·
+  <a href="#modules">Module Boundary</a> ·
+  <a href="#reuse">Reuse vs New</a> ·
+  <a href="#approach">Technical Approach</a> ·
+  <a href="#scope">Scope In/Out</a> ·
+  <a href="#success">Success Criteria</a>
+</nav>
+
+<h2>Goal</h2>
+<div class="card">
+  <p>Restructure <code>src/scripts/app.ts</code> into a maintainable multi-file module layout, then make "Create linked tasks" faster (cached templates, parallel reads/creates) and more resilient to popup close (keepalive writes, visible progress/failure feedback) — without changing the extension's trigger, entry point, or any behavior not explicitly targeted by the five changes.</p>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="card">
+  <ul class="tight">
+    <li>As a user of the "Create linked tasks" action, I want to see immediate on-screen acknowledgment after clicking, so that I know the extension has started working instead of getting silence.</li>
+    <li>As a user, I want a completion summary showing how many of my child tasks were created (and which failed, if any), so that I don't have to manually verify every task was created.</li>
+    <li>As a user, I want tasks that have already started creating to survive me closing the work-item popup, so that I don't lose work I've already triggered.</li>
+    <li>As a user invoking the action repeatedly within a session, I want template lookups to be fast on repeat invocations, so that I'm not waiting on redundant network round trips for data that rarely changes.</li>
+    <li>As a maintainer, I want the codebase split into focused, single-purpose files instead of one 629-line file, so that future changes are easier to locate, review, and reason about.</li>
+  </ul>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+
+<h3>Phase A — Modularization (behavior-preserving, must land and be verified before Phase B)</h3>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>Split <code>app.ts</code> into the <strong>15-file</strong> module boundary below (10 Phase A + 5 Phase B), flat under <code>src/scripts/</code>. <code>app.ts</code> keeps its exact path, AMD id <code>scripts/app</code>, and <code>create(context): void</code> export (<code>src/toolbar.html:21</code> depends on the AMD id by exact string).</td></tr>
+    <tr><td>2</td><td>Extract incrementally: <code>logging.ts</code>, <code>types.ts</code>, <code>context.ts</code> first — smoke-test AMD cross-file imports (compile via <code>tsc</code>, then <code>grunt serve</code> + manual click-through) before extracting the remaining Phase-A files.</td></tr>
+    <tr><td>3</td><td>The dependency graph among the 15 files is a DAG — no circular imports. See Module Boundary below for the exact edges.</td></tr>
+    <tr><td>4</td><td>Each relocated function keeps its logic, name, and behavior byte-for-byte during Phase A. No drive-by fixes, bug fixes, or naming normalization.</td></tr>
+    <tr><td>5</td><td><code>tsconfig.json</code>'s glob include and <code>gruntfile.js</code>'s <code>exec:tsc</code>/<code>copy:static</code> tasks need zero changes for the split (<code>copy:static</code> never copies <code>app.ts</code> by name).</td></tr>
+  </table>
+</div>
+
+<h3>Phase B — Behavioral Changes (implemented into the Phase A structure)</h3>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>6</td><td><strong>Template Cache</strong> — <code>localStorage</code>, 4h TTL, keyed by <code>(project.id, team.id, childTypes)</code>. No event-driven invalidation (accepted, ADR-003).</td></tr>
+    <tr><td>7</td><td><strong>Parallelize</strong> <code>getTeamSettings</code>/<code>getWorkItem</code> via <code>Promise.all</code> (currently nested, <code>app.ts:38-48</code>).</td></tr>
+    <tr><td>8</td><td><strong>Template Classifier</strong> — templates whose <code>linkTo</code> references any of 6 <code>justCreatedTasks</code>-derived rule names are "ordered"; everything else (including <code>ToAllOtherChilds</code> and no-<code>linkTo</code> templates) is "independent."</td></tr>
+    <tr><td>9</td><td><strong>Keepalive Fetch Client</strong> — <code>fetch(..., keepalive:true)</code> replaces the wrapped client for create/link only, with a Bearer token from <code>VSS.getAccessToken()</code>. Exact endpoint/api-version must be captured live via devtools before/during implementation.</td></tr>
+    <tr><td>10</td><td><strong>Independent/ordered dispatch</strong> — independent group runs concurrently; ordered group runs sequentially in existing alphabetical order, preserving exact <code>justCreatedTasks</code> indexing and fire-and-forget <code>linkItems</code> semantics.</td></tr>
+    <tr><td>11</td><td><strong>Progress Dialog Controller</strong> — start dialog fire-and-forget per work item; completion dialog gated on <code>Promise.allSettled</code> per work item, with partial-failure summary. One pair per work item ID, not per batch.</td></tr>
+    <tr><td>12</td><td><strong>Failure aggregation</strong> — thread success/failure results from <code>createWorkItem</code>/<code>linkItems</code> error branches up through <code>createChildFromTemplate</code> to the per-work-item <code>Promise.allSettled</code>, feeding the completion dialog. First user-facing error surface this extension has had.</td></tr>
+  </table>
+</div>
+
+<h3>Explicitly Not Changed</h3>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>13</td><td><code>create()</code>'s external contract (<code>create(context: any): void</code>, AMD id <code>scripts/app</code>) and <code>toolbar.html</code>'s call site are unchanged — no new entry point/manifest contribution.</td></tr>
+    <tr><td>14</td><td><code>GetChildTypes</code>'s <code>bugsBehavior</code> numeric-enum-vs-string-literal bug (<code>app.ts:557,568,574,577</code>) stays exactly as-is.</td></tr>
+    <tr><td>15</td><td><code>GetChildTypes</code> (<strong>10 call sites</strong>) and <code>createWorkItem</code> (<strong>1 call site</strong>)'s direct <code>VSS.getWebContext()</code> calls, instead of reusing module-level <code>ctx</code>, stay exactly as-is — not normalized as a drive-by.</td></tr>
+    <tr><td>16</td><td>No version bumps to <code>package.json</code>/<code>vss-extension.json</code>.</td></tr>
+    <tr><td>17</td><td>No automated test framework introduced.</td></tr>
+  </table>
+</div>
+
+<h2 id="modules">Module Boundary (15 files — 10 Phase A + 5 Phase B)</h2>
+
+<div class="card">
+  <h3 style="margin-top:0;">Phase A files (10) <span class="phase-label">— existing code relocated verbatim, no new logic</span></h3>
+  <div style="overflow-x:auto;">
+  <table class="filecode">
+    <tr><th>File</th><th>Contents (moved from app.ts)</th><th>Depends on</th></tr>
+    <tr><td><code>app.ts</code></td><td><code>create()</code> (611-628) — becomes the thin orchestrator entry point</td><td><code>orchestrator.ts</code>, <code>context.ts</code></td></tr>
+    <tr><td><code>orchestrator.ts</code></td><td><code>AddTasks()</code> (24-70) — in Phase A wired only to the Phase-A files below</td><td><code>context.ts</code>, <code>templates.ts</code>, <code>childTypes.ts</code>, <code>workItemCreation.ts</code> <span class="phase-label">(Phase A)</span>; + <code>templateClassifier.ts</code>, <code>progressDialogController.ts</code>, <code>templateCache.ts</code> <span class="phase-label">(Phase B)</span></td></tr>
+    <tr><td><code>context.ts</code> <span class="pill new">new file, structural</span></td><td>Module-level <code>ctx: WebContext</code> state (<code>app.ts:22</code> + assignment at <code>app.ts:615</code>), exported as <code>export let ctx: WebContext</code></td><td>VSS SDK ambient typings only</td></tr>
+    <tr><td><code>types.ts</code> <span class="pill new">new file, structural</span></td><td><code>WitClient</code>, <code>WorkClient</code>, <code>WorkItemFields</code> type aliases (<code>app.ts:10-20</code>)</td><td>VSS SDK ambient typings only</td></tr>
+    <tr><td><code>logging.ts</code></td><td><code>logInfo</code>/<code>logError</code> (603-609)</td><td>none</td></tr>
+    <tr><td><code>workItemCreation.ts</code></td><td><code>createWorkItem</code> (104-199), <code>createChildFromTemplate</code> (72-83), <code>getRelatedWorkItems</code> (85-102), <code>linkItems</code> (201-229)</td><td><code>templateBuilder.ts</code>, <code>templateFilters.ts</code>, <code>templates.ts</code> (<code>getTemplate</code>), <code>types.ts</code>, <code>context.ts</code>, <code>logging.ts</code> <span class="phase-label">(Phase A)</span>; + <code>keepaliveFetchClient.ts</code> <span class="phase-label">(Phase B, replaces direct witClient calls)</span></td></tr>
+    <tr><td><code>templateBuilder.ts</code></td><td><code>createWorkItemFromTemplate</code> (231-282, pure JSON-Patch builder; reads <code>ctx.user.uniqueName</code> at line 271)</td><td><code>context.ts</code>, <code>types.ts</code>, <code>templateFilters.ts</code> (<code>replaceReferenceToParentField</code>)</td></tr>
+    <tr><td><code>templateFilters.ts</code></td><td><code>checkRules</code>, <code>IsValidTemplateWIT</code>, <code>matchField</code>, <code>IsValidTemplateTitle</code>, <code>IsPropertyValid</code>, <code>replaceReferenceToParentField</code>, <code>extractJSON</code>, <code>IsJsonString</code></td><td><code>logging.ts</code>, <code>types.ts</code> (<code>WorkItemFields</code>)</td></tr>
+    <tr><td><code>childTypes.ts</code></td><td><code>GetChildTypes</code> (541-601, <code>bugsBehavior</code> bug preserved verbatim; calls <code>VSS.getWebContext()</code> directly at multiple sites — preserve every call site exactly), <code>findWorkTypeCategory</code> (486-493)</td><td><code>types.ts</code> (<code>WitClient</code>); VSS SDK ambient typings</td></tr>
+    <tr><td><code>templates.ts</code></td><td><code>getTemplate</code> (495-498), <code>getTemplates</code> (510-538), <code>SortTemplates</code> (501-508) — gains the Template Cache's cache-check-first wrapper in Phase B</td><td><code>context.ts</code>, <code>types.ts</code> <span class="phase-label">(Phase A)</span>; + <code>templateCache.ts</code> <span class="phase-label">(Phase B)</span></td></tr>
+  </table>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Phase B files (5) <span class="phase-label">— genuinely new code, created fresh when the requirement lands, not pre-created as empty skeletons</span></h3>
+  <div style="overflow-x:auto;">
+  <table class="filecode">
+    <tr><th>File</th><th>Contents (new code)</th><th>Depends on</th></tr>
+    <tr><td><code>templateCache.ts</code> <span class="pill new">new code</span></td><td>Template Cache component — Core Requirement 6</td><td><code>context.ts</code>, <code>types.ts</code></td></tr>
+    <tr><td><code>keepaliveFetchClient.ts</code> <span class="pill new">new code</span></td><td>Keepalive Fetch Client — Core Requirement 9</td><td><code>authTokenProvider.ts</code>, <code>types.ts</code></td></tr>
+    <tr><td><code>authTokenProvider.ts</code> <span class="pill new">new code</span></td><td><code>VSS.getAccessToken()</code> wrapper</td><td>VSS SDK ambient typings only</td></tr>
+    <tr><td><code>progressDialogController.ts</code> <span class="pill new">new code</span></td><td>Start/completion <code>openMessageDialog</code> calls — Core Requirement 11</td><td>VSS SDK ambient typings only</td></tr>
+    <tr><td><code>templateClassifier.ts</code> <span class="pill new">new code</span></td><td>Independent-vs-ordered <code>linkTo</code> rule scan — Core Requirement 8</td><td><code>types.ts</code>, <code>templateFilters.ts</code> (<code>extractJSON</code>, reusing <code>createWorkItem</code>'s existing parsing path)</td></tr>
+  </table>
+  </div>
+  <p style="color:var(--dim); margin-top:10px;">These 5 files do not exist when Phase A completes — each is created fresh, for the first time, when its corresponding Core Requirement (6, 8, 9, or 11) is implemented, keeping Phase A's "behavior-preserving, zero new logic" property literal.</p>
+</div>
+
+<div class="card">
+  <p style="margin:0;"><strong>DAG constraint:</strong> base layer with no internal dependencies is <code>context.ts</code>, <code>types.ts</code>, <code>logging.ts</code>. <code>types.ts</code> is a cross-cutting dependency shared by <code>workItemCreation.ts</code>, <code>templateFilters.ts</code>, <code>childTypes.ts</code>, <code>templates.ts</code>, <code>templateCache.ts</code>, <code>keepaliveFetchClient.ts</code>, and <code>templateClassifier.ts</code>. Verify no cycle is introduced during extraction — in particular, <code>templateBuilder.ts</code> → <code>templateFilters.ts</code> and <code>templateClassifier.ts</code> → <code>templateFilters.ts</code> must not be met by any reverse edge from <code>templateFilters.ts</code> back to either.</p>
+</div>
+
+<h2 id="reuse">Reusable Components vs New</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>Existing Code Reused</h3>
+    <div class="pill-row">
+      <span class="pill reuse">All app.ts functions (relocated)</span>
+      <span class="pill reuse">createWorkItemFromTemplate body shape</span>
+      <span class="pill reuse">linkItems document shape</span>
+      <span class="pill reuse">extractJSON / IsJsonString</span>
+      <span class="pill reuse">SortTemplates</span>
+      <span class="pill reuse">tsconfig / gruntfile (unchanged)</span>
+    </div>
+    <p>Every function currently in <code>app.ts</code> is reused verbatim for the modularization pass. The Keepalive Fetch Client replicates <code>createWorkItemFromTemplate</code>'s existing JSON-Patch body construction and <code>linkItems</code>'s existing <code>document</code> array shape exactly — a new transport, not new body-building logic. <code>extractJSON</code>/<code>IsJsonString</code> are reused as-is by the Template Classifier, same parsing path <code>createWorkItem</code> already uses.</p>
+  </div>
+  <div class="card">
+    <h3>New Components (no external precedent)</h3>
+    <div class="pill-row">
+      <span class="pill new">Template Cache</span>
+      <span class="pill new">Keepalive Fetch Client</span>
+      <span class="pill new">Auth Token Provider</span>
+      <span class="pill new">Progress Dialog Controller</span>
+      <span class="pill new">Template Classifier</span>
+      <span class="pill new">Failure aggregation</span>
+    </div>
+    <p>Confirmed by both codebase analysis and gap analysis: <code>fetch</code>/<code>localStorage</code>/<code>getAccessToken</code>/<code>openMessageDialog</code> have zero existing usage anywhere in the repo. No external precedent to reuse — built fresh per this repo's own conventions. <code>context.ts</code>/<code>types.ts</code> are structural extraction of existing state/types, not new logic, but new files.</p>
+  </div>
+</div>
+
+<h2 id="approach">Technical Approach</h2>
+<div class="card">
+  <p><strong>Sequencing:</strong> Phase A must complete and be manually verified as behavior-identical to today before Phase B begins — the single biggest debugging lever available given zero automated test coverage; if something breaks in Phase B, the Phase A baseline lets you attribute the regression to behavioral logic rather than file-relocation noise.</p>
+  <p><strong>Phase A verification:</strong> manual smoke test — click "Create linked tasks" against a live org before/after extraction, confirm identical network calls, console output, and created/linked work items. Run once after the first three low-risk files are extracted, and again after the full 10-file Phase A split completes.</p>
+  <p><strong>Phase B data flow:</strong> <code>create()</code> → <code>AddTasks()</code> fires <code>getTeamSettings</code>/<code>getWorkItem</code> concurrently → <code>GetChildTypes</code> (unchanged) → Template Cache checked before <code>getTemplates</code>/<code>getTemplate</code> → start dialog (fire-and-forget) → Template Classifier splits templates → independent group runs concurrently via the Keepalive Fetch Client for writes, ordered group runs sequentially → all outcomes tracked in one <code>Promise.allSettled</code> per work item → completion dialog with partial-failure summary.</p>
+  <details>
+    <summary>Promise style &amp; REST-shape verification detail</summary>
+    <p><strong>Promise style:</strong> native <code>Promise</code>/<code>async</code>/<code>await</code> for all new Phase B code and restructured orchestration. <code>Q</code> remains only in relocated-but-logically-untouched pure helpers (e.g. existing <code>Q.all</code> in <code>getTemplates</code>/<code>GetChildTypes</code>) — no unscoped <code>Q</code>-removal sweep.</p>
+    <p><strong>REST shape verification:</strong> before writing the Keepalive Fetch Client's request-building code, capture the live <code>createWorkItem</code>/<code>updateWorkItem</code> request (URL, <code>api-version</code>, headers, <code>Content-Type: application/json-patch+json</code>) via browser devtools against the confirmed-available live Azure DevOps org. Not guessed or inferred from typings alone.</p>
+  </details>
+  <details style="margin-top:10px;">
+    <summary>Standards compliance</summary>
+    <ul class="tight">
+      <li><strong>Coding style:</strong> new functions match nearest sibling's naming convention (mixed camelCase/PascalCase preserved, not unified); no dead code left from the extraction.</li>
+      <li><strong>Commenting:</strong> document new design choices inline, sparingly, following existing precedent comments; no changelog-style comments.</li>
+      <li><strong>Error handling:</strong> new Keepalive Fetch Client / failure-aggregation code uses <code>logInfo</code>/<code>logError</code> for its own error paths; existing raw <code>console.log</code> sites elsewhere are not retrofitted.</li>
+      <li><strong>Minimal implementation:</strong> new components stay concrete and single-purpose — no speculative pluggable-backend abstractions; every new function has an immediate caller.</li>
+      <li><strong>Packaging:</strong> no changes needed — this task doesn't touch the build/packaging surface.</li>
+    </ul>
+  </details>
+</div>
+
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="color:var(--ok);">In Scope</h3>
+    <ul class="tight">
+      <li>Full modularization of <code>app.ts</code> into 15 flat files (10 Phase A + 5 Phase B), sequenced modularize-first</li>
+      <li>localStorage template caching (4h TTL)</li>
+      <li><code>fetch(keepalive:true)</code> for create/link REST calls</li>
+      <li>Two progress dialogs per work item (start + completion)</li>
+      <li>Parallelized <code>getTeamSettings</code>/<code>getWorkItem</code></li>
+      <li>Independent/ordered template create split</li>
+      <li>Partial-failure summary surfaced to the user</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3 style="color:var(--crit);">Out of Scope</h3>
+    <ul class="tight">
+      <li>Full popup-close survival guarantee (Hub/Hybrid — ADR-001 rejected)</li>
+      <li>Automated tests / test framework</li>
+      <li>Version bumps to manifest/package.json</li>
+      <li>Normalizing <code>ctx</code>-vs-<code>VSS.getWebContext()</code></li>
+      <li>Fixing the <code>GetChildTypes</code> <code>bugsBehavior</code> bug</li>
+      <li>Event-driven cache invalidation</li>
+      <li>Programmatic auto-dismiss of dialogs</li>
+      <li>Full <code>Q</code>-removal sweep; nested/subfolder file layout</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+  <ol class="tight">
+    <li>Second+ invocation within cache TTL skips <code>getTemplates</code>/<code>getTemplate</code> round trips entirely.</li>
+    <li><code>getTeamSettings</code> and <code>getWorkItem</code> execute concurrently, not nested.</li>
+    <li>Non-ordering-dependent templates create concurrently; ordering-dependent templates stay serialized with no link-result change.</li>
+    <li>Any dispatched create request's work item exists in Azure DevOps afterward, even if the popup closed immediately after.</li>
+    <li>Immediate "Creating N tasks..." acknowledgment; completion summary ("N of M created" / failures) once settled, if popup stays open.</li>
+    <li>No behavior change for ordered-group templates vs. current implementation.</li>
+    <li><code>app.ts</code> retains exact path, AMD id <code>scripts/app</code>, and <code>create(context): void</code> signature.</li>
+    <li>No user-visible behavior difference traceable to the file split alone (manual smoke test confirms Phase A parity).</li>
+    <li>The full <strong>15-file structure (10 Phase A + 5 Phase B)</strong> compiles cleanly via existing <code>tsc</code> config and packages via existing <code>grunt</code> tasks with zero config changes.</li>
+  </ol>
+</div>
+
+</body>
+</html>

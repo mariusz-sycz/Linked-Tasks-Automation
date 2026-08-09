@@ -1,0 +1,371 @@
+orchestrator:
+  started_phase: phase-12
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11, phase-12, phase-13]
+  failed_phases: []
+
+  auto_fix_attempts:
+    phase-1: 0
+    phase-2: 0
+    phase-3: 0
+    phase-5: 0
+    phase-7: 0
+    phase-8: 0
+    phase-9: 0
+    phase-11: 0
+
+  options:
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    spec_audit_verdict: "pass_with_concerns"
+    spec_audit_resolutions:
+      - "Added 6 missing cross-file dependency edges to the module boundary table (templateBuilder->templateFilters, workItemCreation->templates, templateClassifier->templateFilters, plus types.ts edges for templateFilters/orchestrator/childTypes/workItemCreation)"
+      - "Disambiguated Phase A vs Phase B file creation: Phase A relocates 10 existing-code files, Phase B creates 5 new-code files fresh (not pre-created as empty skeletons)"
+      - "Corrected file count from '~13' to '15' (10 Phase A + 5 Phase B) throughout spec.md and spec.html"
+      - "Corrected GetChildTypes/createWorkItem VSS.getWebContext() citation from '×3'/'×1' to verified '10 call sites'/'1 call site' (re-grepped against src/scripts/app.ts)"
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: false
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+
+  created: 2026-08-08T15:36:02Z
+  updated: 2026-08-08T15:36:02Z
+  task_path: .maister/tasks/development/2026-08-08-speed-up-task-creation
+
+  task_ids:
+    phase-1: "1"
+    phase-2: "2"
+    phase-3: "3"
+    phase-4: "4"
+    phase-5: "5"
+    phase-6: "6"
+    phase-7: "7"
+    phase-8: "8"
+    phase-9: "9"
+    phase-10: "10"
+    phase-11: "11"
+    phase-12: "12"
+    phase-13: "13"
+    phase-14: "14"
+
+task:
+  title: "Speed up task creation, add progress feedback, fix popup-close reliability, modularize app.ts"
+  status: completed
+  description: >
+    Implement the design from research task 2026-08-08-speed-up-task-creation:
+    (1) reduce click-to-first-task delay via localStorage template caching (4h TTL),
+    parallelizing getTeamSettings/getWorkItem, and bounded parallelization of the
+    per-template create loop (independent vs. justCreatedTasks-ordered groups);
+    (2) give visible progress feedback via two IHostDialogService.openMessageDialog
+    calls (start/completion summary); (3) fix popup-close reliability by switching
+    create/link REST calls from the wrapped SDK client to raw fetch(keepalive:true)
+    with a bearer token from VSS.getAccessToken() — no new contribution surface,
+    per the research's high-level-design.md (ADR-001 through ADR-005).
+    PLUS (user-added mid-Phase-1 scope): split the entire single-file
+    src/scripts/app.ts (629 lines) into a proper multi-file module structure —
+    not just the 5 new/changed pieces from the research design, but the whole
+    file including currently-untouched functions. The prior, separately-tracked
+    TypeScript migration task ported app.js to app.ts but kept it monolithic;
+    modularization was out of that task's scope and is net-new here.
+  tags: [performance, ux, reliability, azure-devops-extension]
+  priority: high
+
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: true
+  tech_clarified: true
+  architecture_decision:
+    decision: "No new contribution surface — point-fixes within the existing single ms.vss-web.action contribution"
+    summary: >
+      fetch(keepalive:true) replaces the wrapped REST client for creates/links;
+      localStorage + 4h TTL template caching; two openMessageDialog calls for
+      start/completion progress feedback (no programmatic auto-close achievable);
+      getTeamSettings/getWorkItem parallelized; template creates split into
+      independent (parallel) and ordered (justCreatedTasks-dependent, sequential) groups.
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: false
+
+  research_reference:
+    path: .maister/tasks/research/2026-08-08-speed-up-task-creation
+    research_question: >
+      How can we speed up child work item creation in the Linked Tasks Automation extension
+      (async template preloading/caching, async creation, async linking), give users visible
+      non-blocking progress feedback, and fix task creation breaking when the work item is
+      opened in an Azure DevOps popup panel so creation survives popup close and only a full
+      page refresh stops it?
+    research_type: mixed
+    confidence_level: medium
+
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+
+  project_doc_paths:
+    - .maister/docs/project/vision.md
+    - .maister/docs/project/roadmap.md
+    - .maister/docs/project/tech-stack.md
+
+  phase_summaries:
+    research:
+      summary: >
+        Root cause of all 3 sub-questions: the extension's single ms.vss-web.action
+        contribution has no pre-click load moment, no visible DOM, and is torn down
+        on hosting dialog close, aborting in-flight REST calls. Chosen design (per
+        explicit user convergence, overriding the exploration's Hybrid-architecture
+        recommendation): no new contribution surface. localStorage+TTL caching,
+        fetch(keepalive:true) for creates/links, two modal dialogs for progress,
+        bounded parallelization of independent reads and non-ordering-dependent
+        template creates.
+      key_findings:
+        - "Entire creation flow is one sequential Q-promise chain, zero UI feedback (High confidence)"
+        - "getTeamSettings/getWorkItem are independent but nested — safe to parallelize (High confidence)"
+        - "Per-template create loop over-serialized; only justCreatedTasks-dependent templates need ordering (High confidence)"
+        - "localStorage survives toolbar iframe teardown; recommended caching mechanism (High confidence)"
+        - "No built-in control renders visible non-blocking progress for this contribution type (High confidence)"
+        - "Form-scoped contributions (this extension's type) are documented as torn down on dialog close (Medium-High confidence, not live-verified)"
+        - "Iframe removal aborts in-flight fetch/XHR — standard browser behavior (Medium-High confidence)"
+        - "fetch(keepalive:true) survives iframe teardown but cannot chain on the response afterward — ordering-dependent creates and link-to-parent calls not yet dispatched remain exposed to popup close (accepted limitation, ADR-002)"
+      recommended_approach: >
+        No new contribution surface (ADR-001); fetch(keepalive:true) for creates/links (ADR-002);
+        localStorage + 4h TTL caching (ADR-003); two openMessageDialog calls for progress (ADR-004);
+        bounded dependency-aware parallelization (ADR-005).
+      decisions:
+        - decision: "No new contribution surface; Hub/Hybrid architecture explicitly rejected for this iteration"
+          rationale: "ADR-001 — explicit user convergence favoring simplicity over solution-exploration.md's top recommendation"
+        - decision: "fetch(keepalive:true) with VSS.getAccessToken() bearer token replaces wrapped client for creates/links only"
+          rationale: "ADR-002 — the only mechanism that survives iframe teardown on popup close; reads stay on the existing wrapped client"
+        - decision: "localStorage + 4h TTL for template caching, lazy population"
+          rationale: "ADR-003 — no template-save event exists in Azure DevOps extensibility points or Service Hooks catalog (confirmed infeasible)"
+        - decision: "Two openMessageDialog calls (start/completion) for progress feedback, no programmatic auto-close"
+          rationale: "ADR-004 — the confirmed API (IHostDialogService) has no IExternalDialog close handle; one-click-dismiss shipped for v1"
+        - decision: "getTeamSettings/getWorkItem parallelized; template creates split into independent (parallel) and ordered (sequential, justCreatedTasks-dependent) groups"
+          rationale: "ADR-005 — safe concurrency without changing existing template linking behavior"
+      risks:
+        - "Popup-close survival is NOT guaranteed for: (1) ordered-group template creates not yet dispatched when the popup closes, (2) any template's link-to-parent/ToAllOtherChilds link call not yet dispatched — must be communicated as actual behavior, not full guarantee"
+        - "Exact REST endpoint paths/api-version for fetch-based create/link calls must be confirmed at implementation time via devtools network capture against the wrapped client's actual calls — not guessed"
+        - "openMessageDialog auto-dismiss after ~5s is not implementable against the confirmed SDK API; flagged as a non-blocking follow-up spike (self-closing jQuery content), not built for v1"
+        - "Popup-close root cause (Finding 8) is a documented category contrast, not live-verified in a real Azure DevOps org — recommend live verification before/during implementation"
+      artifacts:
+        - path: analysis/research-context/research-report.md
+          label: "Research Report (from research task)"
+          html: null
+        - path: analysis/research-context/solution-exploration.md
+          label: "Solution Exploration (from research task)"
+          html: null
+        - path: analysis/research-context/high-level-design.md
+          label: "High-Level Design (from research task)"
+          html: null
+        - path: analysis/research-context/decision-log.md
+          label: "Decision Log / ADRs (from research task)"
+          html: null
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files: ["src/scripts/app.ts", "src/toolbar.html", "src/tsconfig.json", "src/vss-extension.json"]
+      primary_language: "TypeScript"
+      summary: >
+        All 5 changes land in the single 629-line src/scripts/app.ts (sole consumer:
+        toolbar.html). Every research line reference re-verified with zero drift.
+        fetch/localStorage/native Promise work with no tsconfig changes. VSS.getAccessToken()
+        and IHostDialogService.openMessageDialog() are greenfield (zero existing usage).
+        Zero automated tests exist — verification will be manual via grunt serve + live ADO org.
+      decisions:
+        - decision: "Base 'ordered group' sequencing on justCreatedTasks.push() timing, not link-write completion"
+          rationale: "Existing code already doesn't wait for linkItems calls to resolve before the chain proceeds — preserving that pre-existing non-waiting behavior is the correct backward-compatible baseline"
+        - decision: "No tsconfig.json changes needed for fetch/localStorage/native Promise"
+          rationale: "DOM lib is included by default under target: ES2015 with no explicit lib override"
+        - decision: "Leave the pre-existing GetChildTypes bugsBehavior enum-vs-string bug untouched"
+          rationale: "Confirmed present but explicitly out of scope per the design doc"
+      risks:
+        - "create() fires AddTasks(workItemId) once per ID with no coordination when context.workItemIds has multiple IDs — progress-dialog design (single pair vs. one pair per ID) needs clarification"
+        - "Zero automated tests exist — verification of caching/keepalive/dialog behavior will be manual only"
+        - "Exact REST endpoint URLs/api-version for createWorkItem/updateWorkItem are not locally derivable — must be captured via live devtools network inspection, not guessed"
+      artifacts:
+        - path: analysis/codebase-analysis.md
+          label: "Codebase Analysis Report"
+          html: null
+    clarifications:
+      - decision: "Live ADO org access confirmed"
+        rationale: "REST endpoint/api-version for fetch(keepalive:true) will be captured via live devtools network inspection, not guessed"
+      - decision: "Ship the partial (non-100%-guaranteed) popup-close fix as designed (ADR-002)"
+        rationale: "Hub/Hybrid full-guarantee architecture stays a deferred future escalation, not built now"
+      - decision: "One start/completion dialog pair per work item for multi-ID selections"
+        rationale: "Matches existing per-ID AddTasks(workItemId) independence"
+      - decision: "Completion dialog surfaces a partial-failure summary instead of staying console-only"
+        rationale: "New user-facing surface; matches the design's success criteria"
+      - decision: "Split the ENTIRE app.ts into a multi-file module structure (user-added mid-Phase-1 scope)"
+        rationale: "User judged the single 629-line file (already growing with 5 new components) no longer viable; explicitly chose whole-file modularization over touched-code-only or defer-to-separate-task options. The completed TypeScript migration task kept app.ts monolithic — modularization was out of its scope."
+    gap_analysis:
+      integration_points:
+        - "toolbar.html:21 VSS.require(['scripts/app']) — entry point module id must not change"
+        - "app.ts:38-48 getTeamSettings/getWorkItem — parallelize"
+        - "app.ts:61-65 per-template chain — split into independent/ordered groups + Template Cache + Template Classifier insertion"
+        - "app.ts:104-199 createWorkItem — swap to Keepalive Fetch Client; add failure-result propagation"
+        - "app.ts:201-229 linkItems — swap to Keepalive Fetch Client"
+        - "app.ts:495-538 getTemplate/getTemplates — cache-check-first wrapper"
+        - "app.ts:611-628 create — wire start dialog, per-work-item AddTasks, completion dialog"
+        - "Modularization: entire file relocated into ~13 files; shared ctx module state crosses file boundaries for the first time"
+      summary: >
+        No platform-level gaps for the 5 speed-up/reliability changes — pure implementation
+        work, mostly net-new code. The user-added modularization is the dominant risk driver:
+        touches every function in the 629-line file (including ones the research called
+        "unaffected"), on zero test coverage, and surfaces a real structural hazard (shared
+        module-level ctx state crossing new file boundaries). Risk level: High.
+      decisions:
+        - decision: "Treat the 5 behavioral changes and modularization as orthogonal gaps, reasoned about separately"
+          rationale: "One is behavior-preserving-by-definition (modularization), the other deliberately changes behavior"
+        - decision: "Model the module split around the research design's existing Key Components table (~13 files)"
+          rationale: "Reuses design work already done rather than inventing a new boundary scheme"
+        - decision: "Flag the module-level ctx global as a first-class structural risk, not a footnote"
+          rationale: "Read by functions the research called 'unaffected'; any module split touches their file location/import surface"
+      risks:
+        - "4-hour localStorage TTL cache has no manual clear-cache affordance — already-accepted trade-off from research (ADR-003), not a new decision"
+        - "GetChildTypes/createWorkItem call VSS.getWebContext() directly instead of reusing ctx — pre-existing inconsistency the module split must preserve exactly, not clean up as a drive-by"
+        - "AMD/RequireJS cross-file relative import resolution has never been exercised in this repo (currently one .ts file) — recommend smoke-testing with the first extracted file before committing to the full ~13-file split"
+      artifacts:
+        - path: analysis/gap-analysis.md
+          label: "Gap Analysis"
+          html: null
+    scope_clarifications:
+      scope_expanded: true
+      summary: >
+        6 decisions resolved (all recommended defaults): modularize app.ts into ~13 files
+        FIRST as a pure behavior-preserving refactor, then implement the 5 behavioral
+        changes; ctx stays as shared exported module state; flat file layout; shared
+        types.ts; ctx-vs-VSS.getWebContext() inconsistency preserved as-is; ~13-file
+        granularity kept as proposed.
+      decisions:
+        - decision: "Modularize app.ts first, then implement the 5 behavioral changes"
+          rationale: "Separates refactor risk from behavioral risk into two independently-verifiable passes — the only bisection lever with zero test coverage"
+        - decision: "Shared ctx becomes export let ctx in context.ts, imported directly"
+          rationale: "Minimal diff, no signature changes to functions the research called untouched"
+        - decision: "Flat file layout under src/scripts/, no subfolder"
+          rationale: "13 files doesn't yet justify extra directory structure"
+        - decision: "Extract shared types into types.ts"
+          rationale: "Needed by nearly every proposed module; avoids duplicate/drifting type declarations"
+        - decision: "Preserve the ctx-vs-VSS.getWebContext() inconsistency exactly as-is"
+          rationale: "Normalization is out of scope; avoids conflating an unrelated behavior change with a behavior-preserving refactor"
+        - decision: "Keep the ~13-file module granularity as proposed"
+          rationale: "Mirrors design work already done in high-level-design.md's Key Components table"
+      risks: []
+      artifacts:
+        - path: analysis/scope-clarifications.md
+          label: "Scope Clarifications"
+          html: null
+    ui_mockups: {components_designed: [], summary: null, decisions: [], risks: [], artifacts: []}
+    specification:
+      summary: >
+        17 core requirements (5 modularization + 7 behavioral + 5 explicitly-not-changed
+        guardrails) organized as Phase A (behavior-preserving refactor into ~13 flat files,
+        independently verified) then Phase B (5 behavioral changes into the new structure,
+        native Promise/async-await). app.ts keeps its exact path/AMD id/export signature.
+        No external precedent for the 6 new components — genuinely greenfield.
+      decisions:
+        - decision: "Modularize first, then add behavior (Phase A -> Phase B)"
+          rationale: "Only bisection lever between refactor risk and behavioral risk with zero test coverage"
+        - decision: "Extraction incremental: logging.ts/types.ts/context.ts first to smoke-test AMD cross-file imports"
+          rationale: "Pattern never exercised in this single-file repo before"
+        - decision: "Native Promise/async-await for all new/touched code; Q stays only in untouched pure helpers"
+          rationale: "ES2015 target already supports it with zero config changes; no unscoped conversion sweep"
+      risks:
+        - "Exact REST endpoint/api-version for the Keepalive Fetch Client must be captured live via devtools before that component can be implemented — hard implementation-time dependency"
+        - "Popup-close survival remains partial by design (ADR-002) — Green-gate check must verify the narrower accepted outcome, not 100% survival"
+        - "AMD/RequireJS cross-file relative import resolution never exercised in this repo — incremental extraction order exists to surface this risk early"
+      artifacts:
+        - path: implementation/spec.md
+          label: "Specification"
+          html: implementation/spec.html
+    implementation_plan:
+      summary: >
+        10 task groups, 59 steps, ~49-59 manual verification checks (no automated test
+        framework). Group 1 (logging/types/context extraction) is a hard AMD-import
+        smoke-test gate before Groups 2-4 finish Phase A; Group 4's full-split smoke test
+        gates all of Phase B. Groups 5-8 (auth+keepalive, cache, classifier, dialogs) build
+        independently in parallel, converging in Group 9 (orchestrator integration).
+        Group 10 closes gaps against the spec's 9 success criteria.
+      decisions:
+        - decision: "Group Phase A by DAG tiers (base -> siblings -> builder/creation -> orchestrator/app), not one group per file"
+          rationale: "Keeps each smoke test meaningful (2-4 files/group) while isolating the AMD-import gate as its own first group"
+        - decision: "4 independent Phase B component groups converge in Group 9"
+          rationale: "Mirrors the spec's already-corrected module-boundary table exactly, no re-derivation"
+        - decision: "Live REST-endpoint capture placed as explicit step 5.1, before any keepaliveFetchClient.ts code"
+          rationale: "Core Requirement 9's hard implementation-time dependency, not discovered mid-implementation"
+      risks:
+        - "Group 5 and Group 9 both touch workItemCreation.ts — serialized via Group 9's dependency on Group 5, not just a general parallel-wave assumption"
+        - "Group 9 is the highest-risk single group (concurrency rewrite + dispatch split + failure threading simultaneously)"
+        - "~49-59 total manual checks is a large manual-only regression net, accepted given no test framework exists"
+      artifacts:
+        - path: implementation/implementation-plan.md
+          label: "Implementation Plan"
+          html: implementation/implementation-plan.html
+    implementation:
+      summary: >
+        All 10 task groups (59 steps) executed via 7 waves. Full modularization of
+        app.ts (629 lines) into 15 files (10 Phase A relocated + 5 Phase B new)
+        complete; all 5 behavioral changes implemented and wired. Final tsc compile
+        exit 0. 4 of 9 spec success criteria fully verified (compile/code-reasoning);
+        5 of 9 partially-verified-pending-live (code correct, live confirmation
+        outstanding). Operator chose compile-only verification for this run (no
+        live Azure DevOps org session available in this environment).
+      decisions:
+        - decision: "Skip live verification entirely, compile-only, for this implementation run"
+          rationale: "No live Azure DevOps org session available; operator explicit choice at Phase 8 start"
+        - decision: "Keepalive Fetch Client REST endpoint uses public Microsoft docs conventions, not live-captured"
+          rationale: "Operator explicit choice; flagged in code comments as needing live confirmation before production"
+        - decision: "Promise.allSettled unavailable under ES2015 target -> substituted never-rejecting outcome promises with plain Promise.all"
+          rationale: "Operator confirmed: keep the workaround, no tsconfig.json lib change"
+        - decision: "Create-succeeds-but-parent-link-fails counts as failed (both must succeed)"
+          rationale: "Operator confirmed this interpretation of Core Requirement 12's 'top-level create+parent-link outcome'"
+      risks:
+        - "Keepalive Fetch Client's REST endpoint shape (URL/api-version/headers) is public-docs-derived, not live-captured — highest remaining risk before production, blocks Success Criterion 4"
+        - "Phase 9 TDD Green Gate (live popup-close reproduction) not yet run — outside this plan's scope, blocking for ship"
+        - "17-item outstanding pre-production verification checklist produced (2 blocking, 15 standard regression/feature checks) — see implementation/work-log.md"
+      artifacts:
+        - path: implementation/work-log.md
+          label: "Work Log"
+          html: null
+        - path: implementation/implementation-plan.md
+          label: "Implementation Plan (checkboxes updated)"
+          html: implementation/implementation-plan.html
+
+  tdd_gate_skipped: true
+  tdd_gate_skip_reason: >
+    No test framework exists in this project (confirmed by codebase analysis and the
+    completed TypeScript-migration task, which adapted the same gate the same way).
+    Substituted a documented manual reproduction procedure at implementation/tdd-red-gate.md;
+    Phase 9 re-walked the same steps live against a real Azure DevOps org and confirmed
+    the Green outcome — see implementation/tdd-green-gate.md.
+  tdd_green_passed: true
+
+verification_context:
+  last_status: passed
+  issues_found:
+    - {severity: critical, category: "correctness", description: "Shared-array race between independent (parallel) and ordered (sequential) template dispatch corrupting positional linkTo reads", fixed: true}
+    - {severity: critical, category: "correctness", description: "Missing encodeURIComponent in keepaliveFetchClient.ts's URL builder — breaks for project/type names with spaces", fixed: true}
+    - {severity: warning, category: "error-handling", description: "Unguarded localStorage read/write in templateCache.ts", fixed: true}
+    - {severity: warning, category: "dead-code", description: "Unused witClient parameter threaded through createChildFromTemplate/createOrderedChildrenSequentially", fixed: true}
+    - {severity: info, category: "documentation", description: "Stale doc comment referencing Promise.allSettled in progressDialogController.ts", fixed: false}
+    - {severity: info, category: "pre-existing", description: "Oversized createWorkItem, unhandled rejection in getRelatedWorkItems (pre-existing, not a regression)", fixed: false}
+    - {severity: info, category: "dry-opportunity", description: "4 near-identical cache-wrapper call sites could share one getOrFetch<T> helper", fixed: false}
+    - {severity: info, category: "naming", description: "templateCache.ts name undersells its scope now that it also gates the dialog flag", fixed: false}
+  fixes_applied:
+    - "orchestrator.ts: added dedicated orderedJustCreatedTasks array for the sequential ordered chain"
+    - "keepaliveFetchClient.ts: encodeURIComponent wraps project.name and work-item-type name, $ prefix left unencoded"
+    - "templateCache.ts: getFreshCacheEntry/writeCacheEntry wrapped in try/catch, graceful degradation"
+    - "workItemCreation.ts/orchestrator.ts: removed unused witClient parameter from createChildFromTemplate/createOrderedChildrenSequentially"
+  decisions_made:
+    - "Fix all 4 fixable issues (2 critical + 2 warnings); leave 4 info items as optional future cleanup (operator chose 'Fix all fixable issues')"
+    - "Race condition fix: dedicated orderedJustCreatedTasks array, not full serialization of independent+ordered groups (operator chose to preserve the speed-up)"
+  reverify_count: 1
+  decisions_made: []
+  reverify_count: 0
