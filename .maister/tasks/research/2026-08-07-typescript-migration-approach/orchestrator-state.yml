@@ -1,0 +1,108 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    html_output: true
+    brainstorming_enabled: false
+    design_enabled: false
+  created: "2026-08-07T22:55:54Z"
+  updated: "2026-08-07T23:21:26Z"
+  task_path: .maister/tasks/research/2026-08-07-typescript-migration-approach
+  task_ids:
+    phase-1: "18"
+    phase-2: "19"
+    phase-3: "20"
+    phase-4: "21"
+    phase-5: "22"
+    phase-6: "23"
+
+task:
+  title: "TypeScript Migration Approach for Linked-Tasks-Automation"
+  description: "Research the best approach for migrating this Azure DevOps extension (AMD/RequireJS, Grunt build, VSS SDK, Q promises) to TypeScript — tooling choices, incremental vs. big-bang, type definitions for the VSS SDK."
+  status: completed
+  tags: ["typescript", "migration", "azure-devops-extension"]
+  priority: null
+
+research_context:
+  research_type: mixed
+  research_question: "What is the best approach for migrating the Linked-Tasks-Automation Azure DevOps extension (AMD/RequireJS, Grunt build, VSS SDK, Q promises, no tests) to TypeScript — including tooling choices, incremental vs. big-bang strategy, and type definitions for the VSS SDK?"
+  scope:
+    included:
+      - "TypeScript tooling setup (compiler, build pipeline integration with Grunt)"
+      - "Migration strategy (incremental vs big-bang) for a single ~618-line core module"
+      - "Type definitions / typing strategy for the Azure DevOps VSS Extension SDK and Q promise library"
+      - "Industry best practices for JS-to-TS migrations of small/medium codebases"
+    excluded:
+      - "Actual code implementation of the migration"
+      - "New feature development (Phase 2 of project roadmap, out of scope here)"
+      - "Testing framework selection (tracked separately in roadmap technical debt)"
+    constraints:
+      - "Must keep the project buildable/publishable as an Azure DevOps Marketplace extension throughout migration"
+      - "Solo maintainer — prefer low-overhead tooling"
+      - "No existing test suite to catch regressions during migration"
+  methodology:
+    - "Parallel multi-source gathering (codebase/build analysis + external literature) feeding a single synthesis pass"
+  sources:
+    - "src/scripts/app.js, src/gruntfile.js, src/toolbar.html, src/vss-extension.json, src/configs/*.json, src/package.json"
+    - "External: TypeScript migration handbook, Grunt+TS integration precedent, DefinitelyTyped/npm VSS SDK + Q typing status"
+  confidence_level: high
+  gathering_strategy:
+    categories: ["codebase", "configuration", "external-literature"]
+    count: 3
+    source: planner
+  project_doc_paths:
+    - .maister/docs/project/vision.md
+    - .maister/docs/project/roadmap.md
+    - .maister/docs/project/tech-stack.md
+  phase_summaries:
+    phase-1:
+      summary: null
+      steps_completed: ["step-1", "step-2", "step-3", "step-4"]
+      summary: "Recommend tsc via grunt-exec (not unmaintained grunt-ts), AMD output unchanged at scripts/app.js; JSDoc/checkJs bootstrap then single-shot .ts rename (single-file, so classic incremental doesn't apply); VSS SDK typed via its own bundled typings/ (no DefinitelyTyped) + one ambient `declare const VSS`; Q typed via current @types/q; no-test-suite risk mitigated by process (small commits, manual side-by-side .vsix comparison), not tooling."
+      decisions:
+        - decision: "Use grunt-exec + direct tsc invocation, not grunt-ts"
+          rationale: "grunt-ts is unmaintained (maintainer seeking successor); grunt-exec is already a dependency"
+        - decision: "JSDoc/checkJs bootstrap, then single-shot .ts rename"
+          rationale: "Nothing to incrementalize across in a single-file module; unguarded big-bang rename skips compiler feedback"
+        - decision: "Type the VSS SDK from its own bundled typings/, not DefinitelyTyped"
+          rationale: "vss-web-extension-sdk ships vss.d.ts, tfs.d.ts, rmo.d.ts covering the exact modules used"
+        - decision: "Keep @types/q; treat Q-to-native-Promise conversion as optional follow-up"
+          rationale: "@types/q v1.5.8 (Nov 2023) is current and targets TS 4.5+, no staleness problem"
+        - decision: "Do not adopt azure-devops-extension-sdk as part of this migration"
+          rationale: "Confirmed not a drop-in replacement — distinct, larger, non-drop-in migration"
+      risks:
+        - "No-test-suite mitigation pattern and Q-to-native-Promise recommendation rest on WebSearch summaries only, not independently fetched — directionally reliable, not verbatim-sourced"
+        - "azure-devops-extension-sdk's exact npm publish date could not be cross-verified; the actively-maintained signal itself is solid"
+        - "Installed SDK version is 1.110.0 per lockfile, not ^1.104.0 as referenced in project docs — doesn't change typing recommendation, should be reconciled in project docs opportunistically"
+      artifacts:
+        - path: planning/research-brief.md
+          label: "Research Brief"
+          html: null
+        - path: planning/research-plan.md
+          label: "Research Plan"
+          html: null
+        - path: planning/sources.md
+          label: "Sources Manifest"
+          html: null
+        - path: analysis/findings/codebase-app-structure.md
+          label: "Codebase Findings"
+          html: null
+        - path: analysis/findings/config-build-surface.md
+          label: "Configuration Findings"
+          html: null
+        - path: analysis/findings/external-ts-migration-literature.md
+          label: "External Literature Findings"
+          html: null
+        - path: analysis/synthesis.md
+          label: "Synthesis"
+          html: null
+        - path: outputs/research-report.md
+          label: "Research Report"
+          html: outputs/research-report.html
+
+options:
+  html_output: true
+  brainstorming_enabled: null
+  design_enabled: null

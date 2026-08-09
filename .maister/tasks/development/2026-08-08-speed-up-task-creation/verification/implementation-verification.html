@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — speed-up-task-creation</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.crit b { color:var(--crit); }
+.tile.warn b { color:var(--warn); }
+.tile.info b { color:var(--info); }
+.tile.ok b { color:var(--ok); }
+
+.verdict-banner { display:flex; align-items:center; gap:12px; padding:16px 20px; border-radius:var(--radius);
+  background:var(--crit-soft); border:1px solid var(--crit); margin:14px 0; }
+.verdict-banner .icon { font-size:28px; line-height:1; }
+.verdict-banner .txt b { display:block; font-size:16px; color:var(--crit); }
+.verdict-banner .txt span { font-size:12.5px; color:var(--dim); }
+.verdict-banner.pass { background:var(--ok-soft); border:1px solid var(--ok); }
+.verdict-banner.pass .txt b { color:var(--ok); }
+
+.toc { font-size:12.5px; color:var(--dim); margin:10px 0 6px; }
+.toc a { color:var(--dim); }
+
+.check-table td.result { white-space:nowrap; }
+
+.gate-list { list-style:none; padding:0; margin:0; }
+.gate-list li { padding:5px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.gate-list li:last-child { border-bottom:none; }
+.gate-list li.done::before { content:"\2611 "; color:var(--ok); }
+.gate-list li.pending::before { content:"\2610 "; color:var(--warn); }
+
+.section-status { font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px; }
+.section-status.ok { background:var(--ok-soft); color:var(--ok); }
+.section-status.warn { background:var(--warn-soft); color:var(--warn); }
+.section-status.skip { background:var(--info-soft); color:var(--info); }
+
+.resolved-ribbon { display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 9px; border-radius:99px; background:var(--ok-soft); color:var(--ok);
+  border:1px solid var(--ok); margin-left:8px; }
+.resolved-row { color:var(--ok); font-weight:600; white-space:nowrap; }
+.open-row { color:var(--dim); white-space:nowrap; }
+.strike { text-decoration:line-through; color:var(--dim); }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+
+<header>
+  <span class="badge">Implementation Verification</span>
+  <h1>Implementation Verification Report</h1>
+</header>
+
+<div class="verdict-banner pass">
+  <span class="icon">&#9989;</span>
+  <div class="txt">
+    <b>Overall Status: PASSED</b>
+    <span>Upgraded from an initial Failed verdict after a fix-and-reverify pass — all 4 fixable findings (2 critical, 2 warning) were fixed and independently re-verified by the main agent against the actual source. See Fix &amp; Re-Verification History below.</span>
+  </div>
+</div>
+
+<div class="tiles">
+  <div class="tile crit"><b>2 &#10003;</b><span>Critical &mdash; Resolved</span></div>
+  <div class="tile warn"><b>2 &#10003;</b><span>Warning &mdash; Resolved</span></div>
+  <div class="tile info"><b>4</b><span>Info &mdash; Optional</span></div>
+  <div class="tile ok"><b>0</b><span>Unresolved Blockers</span></div>
+  <div class="tile"><b>59 / 59</b><span>Plan Steps Complete</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Overall status: <b class="pass">Passed</b> (upgraded from an initial Failed verdict after a fix-and-reverify pass). Plan completion, standards compliance, and documentation were clean from the start (0 critical, 1 info). Pragmatic review, production readiness, and reality assessment were all positive with only minor/medium notes. Code review initially surfaced 2 critical-severity correctness bugs plus 2 warnings — <b>all 4 fixable findings were fixed and independently re-verified by the main agent against the actual source</b> (not just subagent self-report); see the <a href="#fix-history">Fix &amp; Re-Verification History</a> section below.</p>
+
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>Fixed all 4 fixable findings (2 critical, 2 warning) in one pass, per operator's explicit "fix all fixable issues" choice.</li>
+    <li>Critical issue #1 (shared-array race) fixed via a dedicated <code>orderedJustCreatedTasks</code> array for the sequential ordered chain, leaving the independent group's <code>justCreatedTasks</code> writes inert (never read back) — operator-approved approach, keeps both groups running concurrently (preserves the speed-up) while making the ordered group's positional links deterministic again.</li>
+    <li>Critical issue #2 (missing URL encoding) fixed by wrapping <code>project.name</code> and the work-item-type name in <code>encodeURIComponent</code>, while deliberately keeping the literal <code>$</code> path-routing prefix unencoded.</li>
+    <li>4 info-level findings (stale doc comment, pre-existing <code>createWorkItem</code> structure, DRY cache-wrapper opportunity, <code>templateCache</code> naming) left as optional future cleanup, per operator's explicit scope choice.</li>
+  </ul>
+
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li>The operator's earlier successful live test (confirmed in <code>tdd-green-gate.md</code>) predates this fix pass and may not have exercised either original bug's triggering condition (a mixed independent+ordered batch; a project/type name with a space) — a re-test after these fixes is recommended but not yet performed.</li>
+    <li>The keepalive endpoint's REST shape remains public-docs-derived, not live-captured — already tracked as this task's #1 outstanding pre-production item (see <code>work-log.md</code>'s 17-item checklist), unaffected by this fix pass.</li>
+  </ul>
+</section>
+
+<nav class="toc">
+  Contents:
+  <a href="#exec-summary">Executive Summary</a> &middot;
+  <a href="#checks">Check Results</a> &middot;
+  <a href="#optional-reviews">Optional Review Results</a> &middot;
+  <a href="#overall">Overall Assessment</a> &middot;
+  <a href="#critical">Critical Issues</a> &middot;
+  <a href="#non-critical">Non-Critical Issues</a> &middot;
+  <a href="#fix-history">Fix &amp; Re-Verification History</a> &middot;
+  <a href="#recommendations">Recommendations</a> &middot;
+  <a href="#checklist">Verification Checklist</a>
+</nav>
+
+<main>
+
+<h2 id="exec-summary">Executive Summary</h2>
+<div class="card">
+  <p>This verification round covered the full implementation (Phase 8, two rounds: original 5 behavioral changes + modularization, plus the operator-requested post-review revisions) via 5 parallel subagents plus the previously-completed manual TDD Green Gate. Four of five checks are clean. Code review surfaced two critical, independently-confirmed correctness bugs that were not caught by prior phases' verification (which focused on preserving <i>existing</i> logic byte-for-byte — these bugs are novel interactions <i>introduced</i> by the new parallel-dispatch design, not preservation failures).</p>
+</div>
+
+<h2 id="checks">Check Results</h2>
+<div class="card">
+  <table class="check-table">
+    <tr><th>Check</th><th>Status</th><th>Detail</th></tr>
+    <tr>
+      <td>Implementation Plan Verification</td>
+      <td><span class="section-status ok">Complete</span></td>
+      <td>59/59 steps across 10 task groups, spot-checked against actual <code>src/scripts/</code> code (not just checkbox trust). <code>tsc -p tsconfig.json</code> independently re-run: exit 0.</td>
+    </tr>
+    <tr>
+      <td>Test Suite Results</td>
+      <td><span class="section-status skip">Skipped</span></td>
+      <td>No automated test framework exists in this project (confirmed project-wide constraint, tracked as separate technical debt in <code>roadmap.md</code>). Verification relied on compile-time correctness (<code>tsc</code>, re-run at every phase gate), manual reproduction of the original defect confirmed live by the operator (<code>implementation/tdd-green-gate.md</code>), and the 5 parallel subagent reviews below.</td>
+    </tr>
+    <tr>
+      <td>Standards Compliance</td>
+      <td><span class="section-status ok">Compliant</span></td>
+      <td>All 5 relevant standards (<code>coding-style.md</code>, <code>commenting.md</code>, <code>error-handling.md</code>, <code>minimal-implementation.md</code>, <code>build-tooling/packaging.md</code>) actively reasoned against and confirmed applied. One pre-existing dead-code block (<code>templateBuilder.ts</code>, inherited verbatim from the pre-refactor baseline) is correctly out of scope, not new debt.</td>
+    </tr>
+    <tr>
+      <td>Documentation Completeness</td>
+      <td><span class="section-status ok">Complete</span></td>
+      <td><code>work-log.md</code> accurately reflects the code (cross-checked via file mtimes — files "not touched" per the post-review-revisions doc genuinely have older mtimes than files it lists as modified). <code>post-review-revisions.md</code>'s 6 resolved requirements all verified present in code, one-for-one.</td>
+    </tr>
+  </table>
+</div>
+
+<h2 id="optional-reviews">Optional Review Results</h2>
+
+<div class="card">
+  <h3 style="margin-top:0">Code Review <span class="badge" style="background:var(--crit-soft);color:var(--crit)">2 critical</span> <span class="resolved-ribbon">&#10003; Both Resolved</span></h3>
+  <p><i>Source: <a href="code-review-report.md" target="_blank" rel="noopener">verification/code-review-report.md</a></i></p>
+  <p>Surfaced the two critical issues (see <a href="#critical">Critical Issues</a> below) plus several lower-severity findings:</p>
+  <ul>
+    <li>Missing <code>encodeURIComponent</code> in <code>keepaliveFetchClient.ts</code>'s URL builder (elevated to critical after main-agent verification).</li>
+    <li>Unguarded <code>localStorage.getItem</code>/<code>setItem</code> in <code>templateCache.ts</code> — a storage exception (plausible in a restricted iframe context) would crash the whole <code>create()</code> invocation rather than degrading gracefully, violating the error-handling standard's "graceful degradation for non-critical failures" guidance. Especially notable since the new dialog-gate check in <code>app.ts</code> runs this as literally the first synchronous operation in <code>create()</code>.</li>
+    <li>Stale doc comment in <code>progressDialogController.ts</code> still referencing <code>Promise.allSettled</code>, which the implementation explicitly does NOT use (works around it with never-rejecting promises instead) — cosmetic, but misleading to future readers.</li>
+    <li>Oversized/deeply-nested <code>createWorkItem</code> with duplicated <code>linkTo</code> branches, and an unhandled-rejection risk in <code>getRelatedWorkItems</code> — both <b>pre-existing</b> (relocated verbatim from the original <code>app.js</code>/<code>app.ts</code>), not regressions introduced by this task, but noted for awareness.</li>
+    <li>The keepalive endpoint's "public-docs-derived, not live-captured" disclosure was checked and confirmed honest/accurate.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Pragmatic Review <span class="badge" style="background:var(--ok-soft);color:var(--ok)">Appropriate</span></h3>
+  <p><i>Source: <a href="pragmatic-review.md" target="_blank" rel="noopener">verification/pragmatic-review.md</a></i></p>
+  <p><b>Verdict: Appropriate, not over-engineered.</b> The 15-file split is proportionate (73 lines/file average, boundaries track real seams, was an audited spec decision not implementer drift). One minor finding: 4 files under 15 lines each (<code>logging.ts</code>, <code>context.ts</code>, <code>types.ts</code>, <code>authTokenProvider.ts</code>) could reasonably be consolidated into one "plumbing" file — not worth unwinding now, a future-cleanup candidate. <code>templateCache.ts</code>'s generic cache primitives are appropriately minimal and genuinely reused (6+ call sites, 3 data shapes) — no speculative abstraction. One medium finding: the "check cache &rarr; miss &rarr; fetch &rarr; write" wrapper shape is hand-duplicated at 4 call sites instead of factored into one <code>getOrFetch&lt;T&gt;</code> helper — a real DRY opportunity, low-risk, not a blocker. The never-rejecting-outcome-promise pattern (workaround for missing <code>Promise.allSettled</code> under the ES2015 target) was assessed as the <i>strongest</i> part of the design, not a complexity layer — it does necessary domain-shape conversion work regardless of whether <code>allSettled</code> were available.</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Production Readiness <span class="badge" style="background:var(--warn-soft);color:var(--warn)">GO WITH MITIGATIONS</span></h3>
+  <p><i>Source: <a href="production-readiness-report.md" target="_blank" rel="noopener">verification/production-readiness-report.md</a></i></p>
+  <p><b>Verdict: GO WITH MITIGATIONS (85% readiness, medium deployment risk, 1 blocker).</b> The one blocker is the same keepalive endpoint risk already tracked as this task's own top action item (public-docs-derived, not live-captured) — confirmed honestly and thoroughly documented in code comments, spec.md, and work-log.md, not a surprise finding. Confirmed no version bumps occurred (<code>package.json</code>/<code>vss-extension.json</code> untouched, matching the declared out-of-scope decision). Two pre-existing concerns noted (no fetch timeout, an unhandled rejection in <code>getRelatedWorkItems</code>) — not regressions. One recommendation: guard <code>templateCache.ts</code>'s <code>writeCacheEntry</code> against <code>QuotaExceededError</code> (same finding as code review, now resolved — see Fix &amp; Re-Verification History). No hardcoded secrets, <code>npm audit</code> clean, no circular imports. Scoped appropriately for a stateless, backend-less, no-CI/CD browser extension — did not flag infrastructure this project type doesn't have.</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Reality Assessment <span class="badge" style="background:var(--warn-soft);color:var(--warn)">Issues Found</span></h3>
+  <p><i>Source: <a href="reality-check.md" target="_blank" rel="noopener">verification/reality-check.md</a></i></p>
+  <p><b>Verdict: Issues Found (ship-viable, minor cleanup recommended).</b> All 4 core mechanisms (keepalive fetch, extended caching, independent/ordered dispatch, batch progress dialogs) were independently confirmed as genuinely implemented by reading source directly, not trusting work-log prose or the operator's report alone — though the operator's live "popup-close... it worked" confirmation was weighted as strong corroborating evidence. Zero TODO/FIXME/stub found. Zero false claims in work-log.md found against code. One genuine new dead-code finding: <code>createChildFromTemplate</code>'s <code>witClient</code> parameter is threaded through from <code>orchestrator.ts</code> but never used inside the function body (the function acquires its own client internally) — harmless (compiles clean, doesn't affect behavior) but violates the no-dead-code standard; recommended a 5-minute cleanup (now resolved — see Fix &amp; Re-Verification History).</p>
+</div>
+
+<h2 id="overall">Overall Assessment</h2>
+<div class="card">
+  <table>
+    <tr><th>Check</th><th>Result</th></tr>
+    <tr><td>Plan completion</td><td class="result"><span class="pass">&#9989;</span> 59/59 steps, spot-checked</td></tr>
+    <tr><td>Test suite</td><td class="result">&#9193;&#65039; Skipped (no framework; manual + live operator verification)</td></tr>
+    <tr><td>Standards compliance</td><td class="result"><span class="pass">&#9989;</span> Compliant</td></tr>
+    <tr><td>Documentation</td><td class="result"><span class="pass">&#9989;</span> Complete</td></tr>
+    <tr><td>Code review</td><td class="result">&#9888;&#65039; 2 critical (see below), several lower-severity</td></tr>
+    <tr><td>Pragmatic review</td><td class="result"><span class="pass">&#9989;</span> Appropriate, 1 medium DRY opportunity</td></tr>
+    <tr><td>Production readiness</td><td class="result">&#9888;&#65039; GO WITH MITIGATIONS, 1 known/tracked blocker</td></tr>
+    <tr><td>Reality assessment</td><td class="result">&#9888;&#65039; Genuine, 1 minor dead-code cleanup</td></tr>
+  </table>
+</div>
+
+<h2 id="critical">Critical Issues</h2>
+<p style="color:var(--dim);font-size:12.5px">Both independently re-verified by the main agent against actual source, not just subagent-reported. Both have since been fixed and re-verified — see <a href="#fix-history">Fix &amp; Re-Verification History</a>.</p>
+
+<div class="card">
+  <span class="sev critical">Critical</span><b>Shared-array race between independent and ordered template dispatch</b><span class="resolved-ribbon">&#10003; Resolved</span>
+  <p style="margin:6px 0 0"><code>orchestrator.ts:102-107</code></p>
+  <p><code>independentOutcomes</code> (parallel <code>Promise.all</code> over independent-classified templates) and <code>orderedOutcomes</code> (<code>createOrderedChildrenSequentially</code>'s sequential chain) are dispatched concurrently and both receive the <i>same</i> <code>justCreatedTasks</code> array reference (line 67). Every successful create — independent or ordered — pushes into this shared array (<code>workItemCreation.ts</code>'s <code>createWorkItem</code>, line 64). The ordered group's positional <code>linkTo</code> rules (<code>PreviouslyCreatedTask</code> = <code>length-2</code>, <code>SecondPreviouslyJustCreatedTask</code> = <code>length-3</code>, <code>FirstJustCreatedTask</code> = <code>[0]</code>, <code>SecondJustCreatedTask</code> = <code>[1]</code>, <code>ToAllJustCreatedTasks</code> = entire array) assume a specific, deterministic push order that only held under the <i>original</i> fully-sequential design. With independent creates now interleaving concurrently, an ordered template's positional link can point at the wrong task (a just-created independent-group task instead of the intended ordered-group predecessor), or <code>ToAllJustCreatedTasks</code> can capture an inconsistent snapshot. This directly threatens spec Success Criterion 3's "no change in resulting links compared to current behavior" for ordered templates.</p>
+  <p><b>Only manifests in batches containing both independent AND ordered templates together</b> — a batch of only independent templates, or only ordered templates, is unaffected.</p>
+  <p style="margin-bottom:0;padding-top:8px;border-top:1px solid var(--border)"><span class="pass">&#10003; Resolved:</span> a dedicated <code>orderedJustCreatedTasks</code> array now feeds only <code>createOrderedChildrenSequentially</code>; the independent group's <code>justCreatedTasks</code> writes are inert (never read back). Main agent re-read <code>orchestrator.ts</code> directly and confirmed the ordered chain has no concurrent writers.</p>
+</div>
+
+<div class="card">
+  <span class="sev critical">Critical</span><b>Missing URL encoding in <code>keepaliveFetchClient.ts</code>'s endpoint builder</b><span class="resolved-ribbon">&#10003; Resolved</span>
+  <p style="margin:6px 0 0"><code>buildWorkItemsUrl</code>, line 20-22</p>
+  <p><code>buildWorkItemsUrl</code> concatenates <code>ctxState.ctx.project.name</code> and the work item type name (<code>'$' + workItemTypeName</code>) directly into the URL path with no <code>encodeURIComponent</code>. Azure DevOps' own default work item type names contain spaces — "User Story", "Product Backlog Item", "Test Case", "Shared Steps" (Scrum/Agile process templates) — and project names commonly do too. An unencoded space in a URL path is malformed and will cause the <code>fetch</code> call to fail or hit the wrong resource.</p>
+  <p><b>This directly affects the create/link REST calls that are the core mechanism of this task's popup-close fix</b> — not a peripheral concern.</p>
+  <p style="margin-bottom:0;padding-top:8px;border-top:1px solid var(--border)"><span class="pass">&#10003; Resolved:</span> <code>ctxState.ctx.project.name</code> and the work-item-type name are now wrapped in <code>encodeURIComponent</code>; the literal <code>$</code> path-routing prefix was deliberately left unencoded. Main agent re-read the file directly and confirmed correct placement on both dynamic segments.</p>
+</div>
+
+<h2 id="non-critical">Non-Critical Issues</h2>
+<div class="card">
+  <table>
+    <tr><th>Severity</th><th>Category</th><th>Description</th><th>Location</th><th>Fixable</th><th>Status</th></tr>
+    <tr>
+      <td><span class="sev warning">Warning</span></td>
+      <td>error-handling</td>
+      <td>Unguarded <code>localStorage</code> read/write — a quota/storage exception crashes the whole invocation instead of degrading gracefully</td>
+      <td><code>templateCache.ts:28,52</code></td>
+      <td>Yes</td>
+      <td class="resolved-row">&#10003; Resolved</td>
+    </tr>
+    <tr>
+      <td><span class="sev warning">Warning</span></td>
+      <td>dead-code</td>
+      <td>Unused <code>witClient</code> parameter threaded through <code>createChildFromTemplate</code>/<code>createOrderedChildrenSequentially</code></td>
+      <td><code>workItemCreation.ts:18</code>, <code>orchestrator.ts:40,103,105</code></td>
+      <td>Yes</td>
+      <td class="resolved-row">&#10003; Resolved</td>
+    </tr>
+    <tr>
+      <td><span class="sev info">Info</span></td>
+      <td>documentation</td>
+      <td>Stale doc comment references <code>Promise.allSettled</code>, which isn't actually used</td>
+      <td><code>progressDialogController.ts:6</code></td>
+      <td>Yes</td>
+      <td class="open-row">Open (optional cleanup)</td>
+    </tr>
+    <tr>
+      <td><span class="sev info">Info</span></td>
+      <td>pre-existing</td>
+      <td>Oversized/nested <code>createWorkItem</code>, unhandled rejection in <code>getRelatedWorkItems</code></td>
+      <td><code>workItemCreation.ts</code></td>
+      <td>Not this task's regression — pre-existing, relocated verbatim</td>
+      <td class="open-row">Open (optional cleanup)</td>
+    </tr>
+    <tr>
+      <td><span class="sev info">Info</span></td>
+      <td>DRY opportunity</td>
+      <td>4 near-identical "check cache &rarr; miss &rarr; fetch &rarr; write" wrappers could share one <code>getOrFetch&lt;T&gt;</code> helper</td>
+      <td><code>orchestrator.ts</code>, <code>childTypes.ts</code>, <code>templates.ts</code></td>
+      <td>Yes, but medium effort (Q vs native Promise sites)</td>
+      <td class="open-row">Open (optional cleanup)</td>
+    </tr>
+    <tr>
+      <td><span class="sev info">Info</span></td>
+      <td>naming</td>
+      <td><code>templateCache.ts</code> module name undersells its scope now that it also gates the dialog flag</td>
+      <td><code>app.ts:15</code></td>
+      <td>Cosmetic only</td>
+      <td class="open-row">Open (optional cleanup)</td>
+    </tr>
+  </table>
+</div>
+
+<h2 id="fix-history">Fix &amp; Re-Verification History</h2>
+<div class="card">
+  <p style="margin-top:0">All 4 fixable findings (2 critical, 2 warning) were fixed in one pass and independently re-verified by the main agent against the actual source — not just the fixing subagent's self-report.</p>
+  <table>
+    <tr><th>#</th><th>Issue</th><th>Severity</th><th>Fix Applied</th><th>Re-Check Outcome</th></tr>
+    <tr>
+      <td>1</td>
+      <td>Shared-array race between independent/ordered dispatch (<code>orchestrator.ts:102-107</code>)</td>
+      <td><span class="sev critical">Critical</span></td>
+      <td>Added a dedicated <code>orderedJustCreatedTasks</code> array, passed only to <code>createOrderedChildrenSequentially</code>; independent group's <code>justCreatedTasks</code> writes are now inert (never read back)</td>
+      <td class="resolved-row">&#10003; Resolved &mdash; main agent re-read <code>orchestrator.ts</code> directly: two separate arrays confirmed, ordered chain has no concurrent writers</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Missing URL encoding in <code>keepaliveFetchClient.ts</code> (<code>buildWorkItemsUrl</code>)</td>
+      <td><span class="sev critical">Critical</span></td>
+      <td>Wrapped <code>ctxState.ctx.project.name</code> and the work-item-type name in <code>encodeURIComponent</code>; literal <code>$</code> prefix deliberately kept unencoded</td>
+      <td class="resolved-row">&#10003; Resolved &mdash; main agent re-read the file directly: <code>encodeURIComponent</code> correctly placed on both dynamic segments, <code>$</code> prefix outside the encoding call</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Unguarded <code>localStorage</code> read/write (<code>templateCache.ts</code>)</td>
+      <td><span class="sev warning">Warning</span></td>
+      <td>Wrapped <code>getItem</code> in try/catch (returns <code>undefined</code> on exception, same as existing miss paths); wrapped <code>setItem</code> in try/catch (logs via <code>logError</code>, no-op, never rethrows)</td>
+      <td class="resolved-row">&#10003; Resolved &mdash; main agent re-read the file directly: both functions degrade gracefully</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Unused <code>witClient</code> parameter (<code>workItemCreation.ts</code>, <code>orchestrator.ts</code>)</td>
+      <td><span class="sev warning">Warning</span></td>
+      <td>Removed from <code>createChildFromTemplate</code>'s signature and <code>createOrderedChildrenSequentially</code>'s signature, updated both call sites; <code>AddTasks</code>'s own <code>witClient</code> variable (still genuinely used) left untouched</td>
+      <td class="resolved-row">&#10003; Resolved &mdash; confirmed via clean compile and direct read</td>
+    </tr>
+  </table>
+  <p><b>Re-compile after fixes:</b> <code>tsc -p tsconfig.json</code> exit 0, <code>grunt build</code> exit 0 &mdash; both independently re-run by the main agent, not just the fixing subagent's self-report.</p>
+  <p style="margin-bottom:0"><b>Preservation re-confirmed after fixes:</b> all 7 named <code>linkTo</code> branches, their positional indexing math (<code>length-2</code>, <code>length-3</code>, <code>[0]</code>, <code>[1]</code>), the fire-and-forget nature of every <code>linkItems(...)</code> call inside them, and <code>childTypes.ts</code>'s 10 <code>VSS.getWebContext()</code> call sites + the <code>bugsBehavior</code> bug are all byte-for-byte unchanged by this fix pass &mdash; verified by direct re-read, not assumption.</p>
+</div>
+
+<h2 id="recommendations">Recommendations</h2>
+<div class="card">
+  <ol>
+    <li><span class="strike">Fix both critical issues before considering this task fully shipped.</span> <span class="resolved-ribbon">&#10003; Done</span> &mdash; see <a href="#fix-history">Fix &amp; Re-Verification History</a> above.</li>
+    <li>Consider a live re-test of the specific scenarios these bugs would have affected (a batch mixing independent + ordered templates; a project or work-item-type name containing a space) &mdash; the operator's earlier successful live test predates this fix pass.</li>
+    <li>Info-level items remain optional cleanup, not blocking.</li>
+    <li>The keepalive endpoint's REST shape (public-docs-derived) remains the top outstanding pre-production item, unrelated to this fix pass.</li>
+  </ol>
+</div>
+
+<h2 id="checklist">Verification Checklist</h2>
+<div class="card">
+  <ul class="gate-list">
+    <li class="done">All required subagents invoked (completeness + 4 optional reviews; test suite correctly skipped per <code>skip_test_suite</code>)</li>
+    <li class="done">All subagent results processed</li>
+    <li class="done">Two critical issues independently re-verified by the main agent against actual source before being included in this report</li>
+    <li class="done">Verification report created</li>
+    <li class="done">All 4 fixable issues fixed and re-verified; canonical report rewritten with post-fix verdict</li>
+    <li class="done">Overall status finalized: <b class="pass">Passed</b></li>
+  </ul>
+</div>
+
+</main>
+</body>
+</html>

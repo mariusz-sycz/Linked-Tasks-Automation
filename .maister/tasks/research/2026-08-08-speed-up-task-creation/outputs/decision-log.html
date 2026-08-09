@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Log — Speed Up Task Creation</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+h3 { font-size:13.5px; margin:16px 0 4px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.status { display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 9px; border-radius:99px; background:var(--ok-soft); color:var(--ok); }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:110px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.toc { font-size:13px; margin:10px 0 4px; color:var(--dim); }
+.toc a { color:var(--dim); }
+ul.tight li { margin-bottom:4px; }
+.good { color:var(--ok); } .bad { color:var(--crit); }
+.adr-card { border-left:3px solid var(--accent); }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <span class="here">Decision Log</span>
+  <a href="decision-log.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+
+<header>
+  <span class="badge">Decision Log</span>
+  <h1>Decision Log: Speed Up Task Creation, Progress Feedback, Popup-Close Reliability</h1>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>5</b><span>ADRs total</span></div>
+  <div class="tile"><b>5</b><span>accepted</span></div>
+  <div class="tile"><b>0</b><span>rejected / superseded</span></div>
+</div>
+
+<section class="tldr">
+  <div class="card">
+    <h2 style="margin-top:0">TL;DR</h2>
+    <p>Five ADRs, all reflecting the simpler path chosen during interactive convergence over solution-exploration.md's top-recommended Hybrid architecture. The most consequential: <a href="#adr-001">ADR-001</a> rejects any new contribution surface, which forces <a href="#adr-002">ADR-002</a>'s <code>fetch(keepalive:true)</code> create/link approach and <a href="#adr-004">ADR-004</a>'s still-modal dialog feedback to accept real, documented limitations rather than fully solving popup-close survival and non-blocking progress. <a href="#adr-003">ADR-003</a> settles caching (localStorage + TTL) after live-verifying that event-driven invalidation is not possible on this platform. ADR-004 additionally surfaces a design-time finding &mdash; <code>openMessageDialog</code> has no programmatic close handle &mdash; that narrows what "self-dismissing" can mean in implementation.</p>
+
+    <h3>Key Decisions</h3>
+    <ul class="tight">
+      <li><a href="#adr-001">ADR-001</a>: No new contribution surface &mdash; Hub/Hybrid rejected for this iteration.</li>
+      <li><a href="#adr-002">ADR-002</a>: <code>fetch(keepalive:true)</code> replaces the wrapped REST client for creates/links only, with an accepted response-chaining limitation.</li>
+      <li><a href="#adr-003">ADR-003</a>: <code>localStorage</code> + TTL caching; event-driven invalidation ruled out as infeasible.</li>
+      <li><a href="#adr-004">ADR-004</a>: Two <code>openMessageDialog</code> calls for progress feedback; programmatic auto-close not achievable.</li>
+      <li><a href="#adr-005">ADR-005</a>: Parallelize independent reads and non-ordering-dependent template creates.</li>
+    </ul>
+
+    <h3>Open Questions / Risks</h3>
+    <ul class="tight">
+      <li>ADR-004's "self-dismissing" framing should be re-confirmed with the product owner as "two single-click dialogs, no auto-timer" before implementation.</li>
+      <li>ADR-002's popup-close protection does not extend to ordering-dependent creates or not-yet-dispatched link calls &mdash; communicate as actual behavior, not full survival.</li>
+      <li>ADR-005's classification logic must stay in sync if new <code>linkTo</code> rule types are added later.</li>
+    </ul>
+  </div>
+</section>
+
+<p class="toc">Contents: <a href="#adr-001">ADR-001</a> &middot; <a href="#adr-002">ADR-002</a> &middot; <a href="#adr-003">ADR-003</a> &middot; <a href="#adr-004">ADR-004</a> &middot; <a href="#adr-005">ADR-005</a></p>
+
+<main>
+
+<div class="card adr-card" id="adr-001">
+  <span class="status">Accepted</span>
+  <h2 style="margin-top:8px">ADR-001: No New Contribution Surface &mdash; Reject Hub/Hybrid Architecture</h2>
+  <h3>Context</h3>
+  <p>solution-exploration.md recommended shipping point-fixes immediately while adopting a Hybrid (action trigger + Hub-hosted execution engine) as the target architecture. During convergence, the user explicitly chose to stay within the existing single <code>ms.vss-web.action</code> contribution instead.</p>
+  <h3>Decision Drivers</h3>
+  <ul class="tight">
+    <li>Hybrid/Hub is the highest-complexity alternative of five evaluated &mdash; two contributions, a novel hand-off protocol with no SDK precedent, an unresolved race condition.</li>
+    <li>Extension is in stable/maintenance mode with an established user base; a Hub changes discoverability/navigation.</li>
+    <li><code>fetch(keepalive:true)</code>, verified live during convergence, reduces the marginal benefit of the Hub for popup-close resilience.</li>
+    <li>Marketplace/manifest constraints on adding a Hub were never investigated &mdash; unresolved risk a simpler design avoids.</li>
+  </ul>
+  <h3>Considered Options</h3>
+  <ol class="tight"><li>Hybrid (action + Hub)</li><li>Pure Hub</li><li>Work-item-form-page contribution</li><li>Observer contribution, paired</li><li><b>No new contribution surface</b> &mdash; SELECTED</li></ol>
+  <h3>Decision Outcome</h3>
+  <p>Option 5: preserves today's UX/trigger, zero manifest change, lowest risk, and combined with ADR-002 closes enough of the gap without the Hybrid's unresolved hand-off risk.</p>
+  <h3>Consequences</h3>
+  <p class="good">Good: zero manifest/UX disruption; lowest risk/effort; ships fastest.</p>
+  <p class="bad">Bad: no fully non-blocking progress (ADR-004); no guaranteed popup-close survival for every case (ADR-002); Hub/Hybrid remains a deferred future escalation, not avoided permanently.</p>
+</div>
+
+<div class="card adr-card" id="adr-002">
+  <span class="status">Accepted</span>
+  <h2 style="margin-top:8px">ADR-002: <code>fetch(keepalive:true)</code> Replaces the Wrapped REST Client for Creates and Links</h2>
+  <h3>Context</h3>
+  <p><code>app.ts</code> calls <code>witClient.createWorkItem</code> (<code>:110</code>) and <code>witClient.updateWorkItem</code> (via <code>linkItems</code>, <code>:217</code>) inside the <code>toolbar.html</code> iframe. Iframe teardown on popup close aborts in-flight requests (research Finding 9). <code>fetch</code>'s <code>keepalive</code> option, verified live during convergence, lets a request continue past the frame that started it &mdash; but not any code reading its response.</p>
+  <h3>Decision Drivers</h3>
+  <ul class="tight">
+    <li>Must operate within ADR-001's no-new-surface constraint.</li>
+    <li><code>keepalive</code> is a browser-platform guarantee, lowering platform risk vs. unverified SDK lifecycle claims.</li>
+    <li>Does not keep the JS execution context alive &mdash; any step reading a prior response is unprotected.</li>
+  </ul>
+  <h3>Considered Options</h3>
+  <ol class="tight"><li>Status quo (wrapped client, full fragility)</li><li>New persistent surface (superseded by ADR-001)</li><li><b>Raw <code>fetch(keepalive:true)</code> for creates/links only, reads stay on wrapped client</b> &mdash; SELECTED</li></ol>
+  <h3>Decision Outcome</h3>
+  <p>Option 3: targets the exact failure mechanism, no manifest change, confines new calling pattern to exactly where "survive popup close" matters.</p>
+  <h3>Consequences</h3>
+  <p class="good">Good: dispatched create/link requests complete server-side even after popup close; no manifest change; reads unaffected.</p>
+  <p class="bad">Bad: ordering-dependent (<code>justCreatedTasks</code>) templates whose create hasn't been dispatched at close time never fire; every template's link-to-parent call (<code>:120</code>) and the <code>ToAllOtherChilds</code> link path (<code>:85-102</code>) remain exposed if the popup closes between a read/create and its dependent link call; two REST-calling patterns now coexist; auth is now handled per-call via <code>VSS.getAccessToken()</code>.</p>
+</div>
+
+<div class="card adr-card" id="adr-003">
+  <span class="status">Accepted</span>
+  <h2 style="margin-top:8px">ADR-003: <code>localStorage</code> + TTL Template Caching; Event-Driven Invalidation Rejected as Infeasible</h2>
+  <h3>Context</h3>
+  <p>Templates are re-fetched on every invocation today (Finding 1) despite changing infrequently. <code>localStorage</code> survives iframe teardown (Finding 6). Convergence asked specifically whether event-driven invalidation (reacting to template save) was feasible.</p>
+  <h3>Decision Drivers</h3>
+  <ul class="tight">
+    <li>Cache must survive iframe teardown between invocations &mdash; only <code>localStorage</code> qualifies.</li>
+    <li>Template edits should surface automatically within a bounded window, no manual cache-clear.</li>
+    <li>Verified live against Microsoft's Extensibility Points reference: no extensibility point exists for template create/save &mdash; hubs, menus, toolbars, tabs, dashboard widgets, work-item-form, Service Hooks all checked, none apply. Infeasible, not just deprioritized.</li>
+  </ul>
+  <h3>Considered Options</h3>
+  <ol class="tight"><li>Plain lazy caching, no TTL</li><li>TTL + stale-while-revalidate</li><li>Eager warming on load (needs a persistent surface &mdash; foreclosed by ADR-001)</li><li>Event-driven invalidation &mdash; confirmed infeasible</li><li><b>Lazy population + TTL, no background revalidation</b> &mdash; SELECTED</li></ol>
+  <h3>Decision Outcome</h3>
+  <p>Option 5: zero manifest change, no event source needed, bounds staleness without stale-while-revalidate's added bookkeeping for an infrequently-changing data profile.</p>
+  <h3>Consequences</h3>
+  <p class="good">Good: repeat invocations within TTL skip the fetch entirely; edits picked up automatically within a bounded window; simplest correct option.</p>
+  <p class="bad">Bad: edits can take up to the full TTL (default 4h) to appear; default is a starting point, not empirically tuned.</p>
+</div>
+
+<div class="card adr-card" id="adr-004">
+  <span class="status">Accepted</span>
+  <h2 style="margin-top:8px">ADR-004: Self-Dismissing Modal Dialog for Progress Feedback &mdash; With a Confirmed API Limitation</h2>
+  <h3>Context</h3>
+  <p><code>IHostDialogService.openMessageDialog</code> is the only API confirmed to reach the host frame (Finding 7), and is modal. Convergence asked for a two-call pattern that auto-dismisses after ~5s. Design-time inspection of <code>vss.d.ts:646-654</code> vs. <code>535-562</code> found <code>openMessageDialog</code> returns only <code>IPromise&lt;IMessageDialogResult&gt;</code> &mdash; no <code>IExternalDialog</code> handle. Only <code>openDialog</code> returns a closeable <code>IExternalDialog</code>, and it requires a contributed control &mdash; itself a new contribution, contradicting ADR-001.</p>
+  <h3>Decision Drivers</h3>
+  <ul class="tight">
+    <li>Must stay within ADR-001 &mdash; rules out <code>openDialog</code>'s contributed-control path.</li>
+    <li>Must give an immediate acknowledgment plus a later completion summary.</li>
+    <li>A <code>setTimeout</code>-driven <code>.close()</code> has no handle to call &mdash; not implementable as literally requested.</li>
+  </ul>
+  <h3>Considered Options</h3>
+  <ol class="tight"><li>Single end-of-run modal only</li><li>"Live-updating" single modal &mdash; not implementable, no update method exists</li><li>Toast / <code>GlobalProgressIndicator</code> &mdash; already rejected (no host-frame reach)</li><li><b>Two <code>openMessageDialog</code> calls (start + completion), single default button each, no programmatic auto-close</b> &mdash; SELECTED</li></ol>
+  <h3>Decision Outcome</h3>
+  <p>Option 4: closest approximation to convergence's intent within the API's real capabilities; the literal timer-based auto-dismiss is flagged as not implementable, not silently built.</p>
+  <h3>Consequences</h3>
+  <p class="good">Good: no new contribution; immediate acknowledgment plus completion summary when reachable; one click/Enter dismisses each dialog.</p>
+  <p class="bad">Bad: still genuinely modal while open; no programmatic auto-close is possible &mdash; needs a scope conversation with the product owner before implementation; completion dialog only appears if the popup is still open when tracked promises settle (same limitation as ADR-002, not a new one).</p>
+</div>
+
+<div class="card adr-card" id="adr-005">
+  <span class="status">Accepted</span>
+  <h2 style="margin-top:8px">ADR-005: Bounded, Dependency-Aware Parallelization of Reads and Template Creates</h2>
+  <h3>Context</h3>
+  <p><code>getTeamSettings</code>/<code>getWorkItem</code> are independent but nested (Finding 2). The per-template create loop is serialized unconditionally (<code>:61-64</code>) though only <code>justCreatedTasks</code>-dependent templates genuinely need ordering (Finding 3, Insight 3). Interacts with ADR-002: more parallel templates means more of the batch is keepalive-protected.</p>
+  <h3>Decision Drivers</h3>
+  <ul class="tight">
+    <li>Blanket parallelization would silently change existing templates' linking behavior &mdash; unacceptable for a stable, in-production extension.</li>
+    <li>Classification must reuse the existing <code>linkTo</code>-rule parsing in <code>createWorkItem</code> (<code>:122-188</code>) &mdash; no template schema change.</li>
+    <li>Classification also determines which templates get ADR-002's popup-close protection.</li>
+  </ul>
+  <h3>Considered Options</h3>
+  <ol class="tight"><li>Status quo, fully serialized</li><li>Blanket-parallelize all creates &mdash; rejected, breaks <code>justCreatedTasks</code>-dependent templates</li><li><b>Classify by <code>linkTo</code>-rule reference to <code>justCreatedTasks</code> helpers; parallelize the non-referencing group, keep the referencing group ordered; also parallelize <code>getTeamSettings</code>/<code>getWorkItem</code></b> &mdash; SELECTED</li></ol>
+  <h3>Decision Outcome</h3>
+  <p>Option 3: real concurrency gains with no observed behavior change, and produces exactly the split ADR-002 depends on.</p>
+  <h3>Consequences</h3>
+  <p class="good">Good: overlapping read latency; independent templates maximally keepalive-protected; ordered templates retain identical semantics.</p>
+  <p class="bad">Bad: classifier must stay in sync with any new <code>linkTo</code> rule types; requires careful implementation-time verification against existing template behavior before shipping.</p>
+</div>
+
+</main>
+</body>
+</html>
