@@ -6,6 +6,11 @@
                 stdout: true,
                 stderr: true
             },
+            bundle: {
+                command: "node bundle-scripts.js",
+                stdout: true,
+                stderr: true
+            },
             package_dev: {
                 command: "tfx extension create --root ../build --rev-version --manifests vss-extension.json --overrides-file configs/dev.json --output-path ../dist" ,
                 stdout: true,
@@ -63,7 +68,7 @@
     grunt.loadNpmTasks("grunt-contrib-copy");
     grunt.loadNpmTasks('grunt-contrib-clean');
 
-    grunt.registerTask("build", ["clean:build", "exec:tsc", "copy:static"]);
+    grunt.registerTask("build", ["clean:build", "exec:tsc", "exec:bundle", "copy:static"]);
     grunt.registerTask("package-dev", ["build", "exec:package_dev"]);
     grunt.registerTask("package-release", ["build", "exec:package_release"]);
     grunt.registerTask("publish-dev", ["package-dev", "exec:publish_dev"]);        

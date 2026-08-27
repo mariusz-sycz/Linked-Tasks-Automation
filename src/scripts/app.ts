@@ -4,7 +4,7 @@ import { logInfo } from "./logging";
 import * as ctxState from "./context";
 import { AddTasks } from "./orchestrator";
 import { getFreshCacheEntry, writeCacheEntry } from "./templateCache";
-import { showStartDialog, showCompletionDialog, TemplateOutcome } from "./progressDialogController";
+import { showStartDialog, showCompletionDialog } from "./progressDialogController";
 
 // Static, globally-scoped (no project/team) key gating the start dialog. Deliberately
 // decoupled from the real template cache's project/team-scoped entries: it only
@@ -47,7 +47,7 @@ export function create(context: any): void {
 
     Promise.all(workItemIds.map(function (workItemId: number) {
         console.log('AddTasks for: ' + workItemId);
-        return AddTasks(workItemId).then(function (outcomes: TemplateOutcome[]) {
+        return AddTasks(workItemId).then(function (outcomes) {
             return { workItemId: workItemId, outcomes: outcomes };
         });
     }))

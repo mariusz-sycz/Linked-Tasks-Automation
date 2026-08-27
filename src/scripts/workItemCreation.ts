@@ -14,7 +14,9 @@ import { logError } from "./logging";
 // rejects, so callers can track every template via a plain `Promise.all` (see
 // `orchestrator.ts`) without needing `Promise.allSettled`, which the project's
 // ES2015 compilation target doesn't support. A template skipped by the WIT/title
-// filters counts as succeeded (nothing was attempted, so nothing failed).
+// filters (i.e. it doesn't apply to this work item) resolves with status "skipped" -
+// nothing was attempted for it, but it still counts toward the completion dialog's
+// "N templates" total (see `TemplateOutcome` in `progressDialogController.ts`).
 export function createChildFromTemplate(workItemId: number, currentWorkItem: WorkItemFields, template: WorkItemContracts.WorkItemTemplateReference, teamSettings: WorkContracts.TeamSetting, justCreatedTasks: WorkItemContracts.WorkItem[]): Promise<TemplateOutcome> {
     return Promise.resolve(getTemplate(template.id)).then(function (taskTemplate: WorkItemContracts.WorkItemTemplate): Promise<TemplateOutcome> | TemplateOutcome {
         // Create child
@@ -23,10 +25,10 @@ export function createChildFromTemplate(workItemId: number, currentWorkItem: Wor
                 return createWorkItem(workItemId, currentWorkItem, taskTemplate, teamSettings, justCreatedTasks);
             }
         }
-        return { templateName: taskTemplate.name, succeeded: true };
+        return { templateName: taskTemplate.name, status: "skipped" };
     }, function (error: any): TemplateOutcome {
         logError('Failed to fetch template ' + template.name + ' for work item ' + workItemId + ': ' + error);
-        return { templateName: template.name, succeeded: false };
+        return { templateName: template.name, status: "failed" };
     });
 }
 
@@ -143,7 +145,7 @@ function createWorkItem(workItemId: number, currentWorkItem: WorkItemFields, tas
                 if (!parentLinkSucceeded) {
                     logError('Failed to link created task ' + response.id + ' to parent ' + workItemId + '.');
                 }
-                return { templateName: taskTemplate.name, succeeded: parentLinkSucceeded };
+                return { templateName: taskTemplate.name, status: parentLinkSucceeded ? "created" : "failed" };
             });
         }, function (error: any): TemplateOutcome {
             console.log('Request to create work item request:');
@@ -155,7 +157,7 @@ function createWorkItem(workItemId: number, currentWorkItem: WorkItemFields, tas
                 console.log(errorObj);
             }
             logError('Failed to create work item from template ' + taskTemplate.name + ' for work item ' + workItemId + ': ' + error);
-            return { templateName: taskTemplate.name, succeeded: false };
+            return { templateName: taskTemplate.name, status: "failed" };
         });
 }
 

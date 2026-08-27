@@ -129,6 +129,6 @@ export function AddTasks(workItemId: number): Promise<TemplateOutcome[]> {
         })
         .catch(function (error: any) {
             logError('AddTasks failed for work item ' + workItemId + ': ' + error);
-            return [{ templateName: '(failed before any template was processed)', succeeded: false }];
+            return [{ templateName: '(failed before any template was processed)', status: "failed" }];
         });
 }

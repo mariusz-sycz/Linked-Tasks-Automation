@@ -1,0 +1,130 @@
+orchestrator:
+  started_phase: phase-2
+  completed_phases: [phase-1]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: null
+    user_docs_enabled: null
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: "2026-08-26T17:29:48Z"
+  updated: "2026-08-27T05:01:56Z"
+  task_path: .maister/tasks/development/2026-08-26-template-field-arithmetic-expressions
+  task_ids: {}
+  note: "TaskCreate/TaskUpdate tools unavailable in this session; phase tracking via this file + dashboard."
+
+task:
+  title: "Arithmetic expressions in template field values"
+  description: "Allow template authors to write arithmetic/JavaScript-style expressions in template field values, e.g. \"Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)\". Field placeholders are substituted with parent work item values, then the expression is parsed as a function and evaluated like standard JavaScript code, with the result written to the child work item field."
+  status: in_progress
+  tags: [templates, field-inheritance, expressions]
+  priority: medium
+
+project_context:
+  project_doc_paths:
+    - .maister/docs/INDEX.md
+    - .maister/docs/project/vision.md
+    - .maister/docs/project/roadmap.md
+    - .maister/docs/project/tech-stack.md
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: null
+  architecture_decision: null
+  tech_clarified: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: false
+    ui_heavy: false
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: null
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: null
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files: [src/scripts/templateFilters.ts, src/scripts/templateBuilder.ts, "src/scripts/expressionEvaluator.ts (new)", src/scripts/workItemCreation.ts, src/scripts/keepaliveFetchClient.ts, src/scripts/types.ts, src/scripts/logging.ts, README.md, src/overview.md]
+      primary_language: TypeScript
+      complexity: moderate
+      summary: "Feature integrates at a single seam (templateBuilder.ts:22-24 after placeholder substitution) via a new synchronous expressionEvaluator.ts; analysis recommends an allowlisted hand-rolled evaluator with an explicit opt-in marker and hardening of replaceReferenceToParentField; no build/transport changes required."
+      decisions:
+        - {decision: "New module src/scripts/expressionEvaluator.ts, called from templateBuilder.ts right after placeholder substitution", rationale: "matches the one-concern-per-file pattern; templateFilters.ts is already the largest file and is about filtering, not value transformation"}
+        - {decision: "Hand-rolled allowlisted evaluator (numeric literals, + - * / % ( ), fixed Math.* subset) rather than new Function/eval", rationale: "avoids the unverified unsafe-eval CSP question in the sandboxed extension iframe, satisfies validation.md (allowlists over blocklists), and needs no npm dependency"}
+        - {decision: "Explicit opt-in marker for expression evaluation (e.g. leading =)", rationale: "the existing @me / @currentiteration sentinels in IsPropertyValid are the precedent for special value syntax; auto-detection would corrupt free-text fields"}
+        - {decision: "Emit a native number when evaluation succeeds; fall back to the substituted string (and logError) on any failure", rationale: "never throw out of the template pipeline, consistent with the project's catch/log/degrade error philosophy"}
+        - {decision: "Fix replaceReferenceToParentField to replace all occurrences and detect unresolved fields as part of this work", rationale: "{A}+{A} and missing fields are the two most likely real-world failure modes for arithmetic"}
+      risks:
+        - "Marker syntax is unspecified by the task (Math.ceil({...}*2) with no prefix) — needs a decision: explicit prefix (recommended) vs. heuristic detection."
+        - "Whether the sandboxed Azure DevOps extension iframe permits new Function is unverified; only relevant if the allowlist approach is rejected."
+        - "Result typing: value: 5 vs value: \"5\" — ADO accepts both for numeric fields, but \"NaN\"/\"undefined\" cause a 400 that surfaces only as a failed entry in the completion dialog with no reason shown to the user."
+        - "No test infrastructure exists (task state has skip_test_suite: true); adding Jest requires a second tsconfig because module: amd won't run under Jest."
+        - "Templates are cached in localStorage for 4 hours (templateCache.ts) — manual verification must clear linkedTasksAutomation.templateCache.* keys."
+        - "Uncommitted work on main (TemplateOutcome refactor, bundler, docs rewrite of overview.md) — low collision risk for code, but the new docs section must land in the rewritten structure of both README.md and src/overview.md."
+        - "Two structural quirks in the substitution regex: it matches text before } without requiring {, and String.replace with a string pattern only replaces the first occurrence."
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: "Codebase analysis", html: null}
+    clarifications:
+      - {question: "Evaluation mechanism", answer: "Safe arithmetic subset (hand-rolled allowlisted evaluator: numbers, + - * / % ( ), Math.ceil/floor/round/abs/min/max/pow); no new Function/eval"}
+      - {question: "Expression marker", answer: "Leading = prefix on the template field value"}
+      - {question: "Missing parent field / evaluation failure", answer: "Log error (template, field, expression) and skip the field; child work item is still created"}
+      - {question: "Tests", answer: "Yes - add Jest + ts-jest (test-only CommonJS tsconfig), npm test script, unit tests for evaluator and placeholder substitution"}
+    gap_analysis:
+      integration_points:
+        - "src/scripts/templateBuilder.ts:20-25 - branch on '=' prefix, evaluate, push number or skip field"
+        - "src/scripts/expressionEvaluator.ts (new) - tokenizer, recursive-descent parser, Math.* allowlist, placeholder resolution"
+        - "src/scripts/templateFilters.ts:194-205 - logError on undefined/null placeholder (output unchanged)"
+        - "src/scripts/logging.ts - reuse logError"
+        - "src/package.json - jest/ts-jest/@types/jest devDependencies, 'test' script"
+        - "src/tsconfig.test.json + src/jest.config.js (new) - CommonJS compile, include SDK typings"
+        - "README.md + src/overview.md (identical) - placeholders/expressions section, Project Structure row, replace 'no test suite' line"
+        - "src/vss-extension.json + src/package.json - version alignment (on top of uncommitted 1.2.8 bump)"
+        - ".maister/docs/project/roadmap.md - feature, tests, version line"
+      summary: "No evaluation exists today; gap is a new allowlisted evaluator module, a marker-gated branch in templateBuilder.ts, missing-field detection, first Jest setup, and docs. Phase 1 fixed the design; remaining decisions are edge semantics, scope boundaries, versioning, and one unverified product risk (ADO template editor accepting '=' text in numeric fields)."
+      effort_estimate: medium
+      change_type: additive
+      decisions:
+        - {decision: "has_reproducible_defect = false", rationale: "the undefined interpolation is a latent quirk hardened incidentally, not the task's goal; no failing scenario was reported by a user"}
+        - {decision: "involves_data_operations = false", rationale: "the feature transforms a value inside the existing child-CREATE pipeline; it introduces no entity with its own CRUD lifecycle"}
+        - {decision: "ui_heavy = false", rationale: "the extension has no settings UI; authoring happens in Azure DevOps' own template editor and the only user-visible surface is the existing completion dialog, which is not changed"}
+        - {decision: "Placeholder resolution should happen inside the evaluator (numeric token substitution), not by textual splicing before parsing", rationale: "textual splicing is the root of the undefined, null, 2--3 and string-value failure modes (flagged as an important decision)"}
+      risks:
+        - "Authoring feasibility (unverified, blocking value not code): the Azure DevOps template editor renders the real work item form; numeric fields (Story Points, Effort, Remaining Work) may reject non-numeric text and block Save. If so, = expressions can only be authored for string fields via the UI, or via the Templates REST API."
+        - "Integer-typed fields (Microsoft.VSTS.Common.Priority, BusinessValue) will 400 on a non-integer result, surfacing only as a failed template name in the completion dialog."
+        - "Jest + module: amd do not mix: tests need a second tsconfig (CommonJS) that also pulls in the SDK's typings/*.d.ts; test files must live outside scripts/** (or be excluded) so tsc does not compile them into build/."
+        - "Templates are cached in localStorage for 4 hours; manual verification must clear linkedTasksAutomation.templateCache.* after editing a template."
+        - "The uncommitted in-flight work already bumps vss-extension.json to 1.2.8 while package.json stays at 1.1.17; any version handling in this task lands on top of that."
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: "Gap analysis", html: null}
+    scope_clarifications: {scope_expanded: null, summary: null}
+    ui_mockups: {components_designed: [], summary: null}
+    specification: {summary: null, decisions: [], risks: [], artifacts: []}
+    architecture_decision: {decision: null, summary: null}
+    implementation_plan: {summary: null, decisions: [], risks: [], artifacts: []}
+    implementation: {summary: null, decisions: [], risks: [], artifacts: []}
+    verification: {summary: null, decisions: [], risks: [], artifacts: []}
+
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0

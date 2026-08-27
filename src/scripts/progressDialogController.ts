@@ -2,13 +2,18 @@
 import { logInfo, logError } from "./logging";
 
 /**
- * Outcome of a single template's create/link attempt for one work item. The
- * orchestrator (Group 9) derives these from its `Promise.allSettled` results and
- * passes them to `showCompletionDialog` to build the partial-failure summary.
+ * Outcome of a single template for one work item: `created` (matched the filter and
+ * the work item was created), `failed` (matched the filter but create/link errored),
+ * or `skipped` (didn't match the WIT/title filter - nothing was attempted). Every
+ * candidate template gets exactly one outcome, so `outcomes.length` is always the
+ * true total template count and `showCompletionDialog` needs no separate counter
+ * threaded alongside it.
  */
+export type TemplateOutcomeStatus = "created" | "failed" | "skipped";
+
 export interface TemplateOutcome {
     templateName: string;
-    succeeded: boolean;
+    status: TemplateOutcomeStatus;
 }
 
 function getDialogService(): IPromise<IHostDialogService> {
@@ -43,19 +48,22 @@ export function showStartDialog(workItemIds: number[]): void {
 
 /**
  * Opens the completion dialog once every work item in the batch has settled, listing
- * a one-line "X of Y tasks created" breakdown per work item (plus failed template
- * names when there are any failures). Fire-and-forget, same rationale as
- * `showStartDialog`.
+ * a one-line "X tasks of N templates created" breakdown per work item (plus failed
+ * template names when there are any failures). `N` is `outcomes.length` - every
+ * candidate template found for the work item's type gets exactly one outcome
+ * (`created`/`failed`/`skipped`), so the total naturally includes templates that
+ * were skipped as not-applicable, not just the ones actually attempted. Fire-and-
+ * forget, same rationale as `showStartDialog`.
  */
 export function showCompletionDialog(perWorkItemOutcomes: { workItemId: number, outcomes: TemplateOutcome[] }[]): void {
     var lines = perWorkItemOutcomes.map(function (perWorkItem) {
         var total = perWorkItem.outcomes.length;
-        var succeededCount = perWorkItem.outcomes.filter(function (outcome) { return outcome.succeeded; }).length;
+        var succeededCount = perWorkItem.outcomes.filter(function (outcome) { return outcome.status === "created"; }).length;
         var failedTemplateNames = perWorkItem.outcomes
-            .filter(function (outcome) { return !outcome.succeeded; })
+            .filter(function (outcome) { return outcome.status === "failed"; })
             .map(function (outcome) { return outcome.templateName; });
 
-        var line = 'Work item #' + perWorkItem.workItemId + ': ' + succeededCount + ' of ' + total + ' tasks created';
+        var line = 'Work item #' + perWorkItem.workItemId + ': ' + succeededCount + ' tasks of ' + total + ' templates created';
         if (failedTemplateNames.length > 0) {
             line += '. Failed: ' + failedTemplateNames.join(', ');
         }
