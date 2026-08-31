@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "types": ["jest"],
+    "noEmit": true
+  },
+  "files": ["node_modules/vss-web-extension-sdk/typings/tfs.d.ts"],
+  "include": ["scripts/**/*.ts", "tests/**/*.ts"]
+}

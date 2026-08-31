@@ -3,10 +3,19 @@ import * as WorkContracts from "TFS/Work/Contracts";
 import { WorkItemFields } from "./types";
 import * as ctxState from "./context";
 import { IsPropertyValid, replaceReferenceToParentField } from "./templateFilters";
+import { isExpression, evaluateExpression } from "./expressionEvaluator";
+import { logError } from "./logging";
 
-export function createWorkItemFromTemplate(currentWorkItem: WorkItemFields, taskTemplate: WorkItemContracts.WorkItemTemplate, teamSettings: WorkContracts.TeamSetting): WorkItemFields[] {
+export interface BuiltWorkItem {
+    patchDocument: WorkItemFields[];
+    // Field reference names whose `=` expression failed to evaluate, in template order.
+    skippedFields: string[];
+}
+
+export function createWorkItemFromTemplate(currentWorkItem: WorkItemFields, taskTemplate: WorkItemContracts.WorkItemTemplate, teamSettings: WorkContracts.TeamSetting): BuiltWorkItem {
     // JSON-Patch operation array; see note on `linkItems`'s `document` above.
     var workItem: WorkItemFields[] = [];
+    var skippedFields: string[] = [];
 
     for (var key in taskTemplate.fields) {
         if (IsPropertyValid(taskTemplate, key)) {
@@ -18,10 +27,22 @@ export function createWorkItemFromTemplate(currentWorkItem: WorkItemFields, task
             }
             else {
                 var fieldValue = taskTemplate.fields[key];
-                //check for references to parent fields - {fieldName}
-                fieldValue = replaceReferenceToParentField(fieldValue, currentWorkItem);
+                if (isExpression(fieldValue)) {
+                    var result = evaluateExpression(fieldValue, currentWorkItem);
+                    if (result.ok) {
+                        workItem.push({ "op": "add", "path": "/fields/" + key, "value": result.value })
+                    }
+                    else {
+                        logError("Template '" + taskTemplate.name + "' field '" + key + "': expression '" + fieldValue + "' skipped - " + result.reason);
+                        skippedFields.push(key);
+                    }
+                }
+                else {
+                    //check for references to parent fields - {fieldName}
+                    fieldValue = replaceReferenceToParentField(fieldValue, currentWorkItem);
 
-                workItem.push({ "op": "add", "path": "/fields/" + key, "value": fieldValue })
+                    workItem.push({ "op": "add", "path": "/fields/" + key, "value": fieldValue })
+                }
             }
         }
     }
@@ -54,5 +75,5 @@ export function createWorkItemFromTemplate(currentWorkItem: WorkItemFields, task
         // }
     }
 
-    return workItem;
+    return { patchDocument: workItem, skippedFields: skippedFields };
 }

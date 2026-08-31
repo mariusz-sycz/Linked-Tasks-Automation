@@ -192,11 +192,17 @@ export function IsPropertyValid(taskTemplate: WorkItemContracts.WorkItemTemplate
 }
 
 export function replaceReferenceToParentField(fieldValue: string, currentWorkItem: WorkItemFields): string {
+    var originalValue = fieldValue;
     var filters = fieldValue.match(/[^{\}]+(?=})/g);
     if (filters) {
         for (var i = 0; i < filters.length; i++) {
             var parentField = filters[i];
             var parentValue = currentWorkItem[parentField];
+
+            // The regex also matches text before a stray '}' (e.g. "abc}" -> "abc"); only log real placeholders.
+            if ((parentValue === undefined || parentValue === null) && fieldValue.indexOf('{' + parentField + '}') >= 0) {
+                logError("Parent field '" + parentField + "' referenced in template value '" + originalValue + "' is " + (parentValue === undefined ? "missing" : "null") + "; substituting the literal text '" + String(parentValue) + "'");
+            }
 
             fieldValue = fieldValue.replace('{' + parentField + '}', parentValue)
         }

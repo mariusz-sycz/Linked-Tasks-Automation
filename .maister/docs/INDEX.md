@@ -20,10 +20,10 @@ Located in `.maister/docs/project/`
 Project overview, current state (stable/maintenance mode, ~2.5 years old, published on the Azure DevOps Marketplace), purpose (automating creation of consistent child work items via JSON-defined templates, conditional rules, field inheritance, and linking), and 6-12 month goals centered on a ground-up TypeScript refactor followed by renewed feature development.
 
 ### Roadmap (`project/roadmap.md`)
-Current manifest/package version state (with a known version mismatch), key existing features, Phase 1 (TypeScript tooling, porting `src/scripts/app.js`, typing the VSS SDK/REST client boundary, consolidating logging, aligning versions), Phase 2 (feature backlog and automated tests once TypeScript lands), and tracked technical debt (no tests, no CI/CD, no CONTRIBUTING.md).
+Current manifest/package version state (aligned at `1.3.0`), key existing features (including `=` arithmetic expressions in template fields), Phase 1 (TypeScript tooling, porting `src/scripts/app.js`, typing the VSS SDK/REST client boundary, consolidating logging, aligning versions), Phase 2 (feature backlog with the arithmetic-expressions feature done, Jest tests added, remaining coverage work), and tracked technical debt (partial test coverage (Jest), no CI/CD, no CONTRIBUTING.md).
 
 ### Tech Stack (`project/tech-stack.md`)
-Technology choices and rationale: JavaScript (ES6+, AMD/RequireJS) as the current language with a planned migration to TypeScript, the Azure DevOps Extension SDK (VSS) as the only frontend framework (no backend/database — stateless browser extension against Azure DevOps REST APIs), Grunt + tfx-cli + npm build tooling, no CI/CD or linting currently configured, and the planned JavaScript-to-TypeScript migration path.
+Technology choices and rationale: JavaScript (ES6+, AMD/RequireJS) as the current language with a planned migration to TypeScript, the Azure DevOps Extension SDK (VSS) as the only frontend framework (no backend/database — stateless browser extension against Azure DevOps REST APIs), Grunt + tfx-cli + npm build tooling, Jest 29 + ts-jest unit tests (`npm test`), no CI/CD or linting currently configured, and the planned JavaScript-to-TypeScript migration path.
 
 ### Architecture (`project/architecture.md`)
 *Not generated for this project.* Add it later using the docs-manager skill if a dedicated architecture document becomes useful (e.g., once the TypeScript refactor introduces more structure to describe).

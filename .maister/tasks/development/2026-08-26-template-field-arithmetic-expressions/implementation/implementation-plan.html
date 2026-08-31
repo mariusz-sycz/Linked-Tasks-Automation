@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Plan — Template Field Arithmetic Expressions</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; } h3 { font-size:14.5px; margin:0 0 6px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+header { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+header .meta { color:var(--dim); font-size:12.5px; }
+.tldr { background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:var(--radius); padding:16px 18px; margin:14px 0; }
+.tldr h2 { margin-top:0; }
+.tldr h3 { margin-top:14px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+.tldr ul { margin:6px 0 0; padding-left:20px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 18px; }
+.waves { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+.wave { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; }
+.wave .w { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.wave .g { font-weight:650; margin:4px 0; }
+.wave .why { font-size:12px; color:var(--dim); }
+.arrow { text-align:center; color:var(--dim); font-size:18px; }
+.group { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin:14px 0; }
+.group .g-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+.group .g-badge { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--dim); }
+.group .g-meta { display:grid; grid-template-columns:130px 1fr; gap:4px 10px; font-size:12.5px; margin:8px 0 10px; }
+.group .g-meta dt { color:var(--dim); } .group .g-meta dd { margin:0; }
+.chips code { margin:0 4px 4px 0; display:inline-block; }
+.steps { list-style:none; padding-left:0; margin:6px 0; }
+.steps li { margin:4px 0; }
+.steps li .sub { display:block; color:var(--dim); font-size:12.5px; margin:2px 0 0 22px; }
+.step.todo::before  { content:"☐ "; color:var(--dim); }
+.step.done::before  { content:"☑ "; color:var(--ok); }
+.step.done          { color:var(--dim); }
+.group.todo .g-badge::after { content:"pending"; }
+.group.done .g-badge::after { content:"✓ completed"; color:var(--ok); }
+.cx { font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 7px; border-radius:99px; }
+.cx.low { background:var(--ok-soft); color:var(--ok); } .cx.medium { background:var(--warn-soft); color:var(--warn); } .cx.high { background:var(--crit-soft); color:var(--crit); }
+.acc { margin-top:10px; padding:8px 12px; background:var(--ok-soft); border-radius:6px; font-size:12.5px; }
+.acc b { color:var(--ok); }
+.dep { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; }
+.scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="spec.html">Spec</a>
+  <span class="here">Plan</span>
+  <a href="../verification/spec-audit.md" target="_blank" rel="noopener">Spec Audit</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="implementation-plan.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Implementation Plan: Arithmetic Expressions in Template Field Values</h1>
+  <span class="badge">implementation plan</span>
+  <span class="meta">Generated 2026-08-27 · baseline HEAD <code>551aa91</code> · <a href="implementation-plan.md" target="_blank" rel="noopener">implementation-plan.md ↗</a></span>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>8</b><span>task groups</span></div>
+  <div class="tile"><b>35</b><span>steps</span></div>
+  <div class="tile"><b>27–37</b><span>test blocks</span></div>
+  <div class="tile"><b>5</b><span>waves</span></div>
+  <div class="tile"><b>21 / 10</b><span>R# / T# covered</span></div>
+</div>
+
+<section class="tldr">
+  <h2>TL;DR</h2>
+  <p>Eight task groups, dispatched in five waves: (1) Jest/ts-jest harness first, proved by three baseline <code>replaceReferenceToParentField</code> tests; then (2) the evaluator, (3) substitution-helper logging and (4) outcome type + dialog wording in parallel — none of the three touch each other's files; (5) builder integration plus the <code>workItemCreation.ts</code> caller once all three land; then (6) build verification + test gap review and (7) documentation in parallel; (8) the <code>1.3.0</code> version alignment last. 27 test blocks (T1-T7 are <code>test.each</code> tables carrying the full R18 case list) plus up to 10 gap tests; every R1-R21 / T1-T10 item is mapped in the coverage matrix.</p>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li>T8's three behaviour-pinning cases are written in Group 1, before any production change — they double as the harness proof (a module importing <code>TFS/*</code> types compiles under ts-jest) and as the "non-<code>=</code> output is byte-identical" baseline every later group must keep green.</li>
+    <li>Evaluator tests (T1-T7) are seven <code>test.each</code> blocks, one per spec table, rather than 66 individual <code>test</code> calls — keeps the 2-8-tests-per-group rule at the block level while covering every R18 row verbatim.</li>
+    <li><code>TemplateOutcome.skippedFields</code> (R12) and <code>formatCompletionMessage</code> (R13) are their own group, independent of the evaluator — the <code>created</code> outcome literal in <code>workItemCreation.ts</code> (R11) needs the widened type to compile under <code>strict</code>, so Group 5 depends on Group 4 and is the only group that edits <code>workItemCreation.ts</code>.</li>
+    <li><code>replaceReferenceToParentField</code> logging (R14) is separated from the builder group — different file, no shared state, and it lets Wave 2 run three groups concurrently.</li>
+    <li>Build verification and the test gap review are one group — both are read-mostly checks over the finished code and both must pass before docs claim "<code>npm test</code> covers X".</li>
+    <li>Documentation (Group 7) depends on Group 5, not on Group 6 — its content is fully specified by R19/R20 and does not need the build check; running it alongside Group 6 shortens the critical path.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">warning</span>Group 1 needs one <code>npm install</code> with network access to pull Jest 29 / ts-jest 29 / @types/jest 29; if the registry is unreachable the whole plan stalls at Wave 1.</li>
+    <li><span class="sev info">info</span><code>src/package-lock.json</code> is rewritten twice (Group 1 <code>npm install</code>, Group 8 <code>npm install --package-lock-only</code>); both groups declare it so the executor serializes them — do not hand-edit the lock file.</li>
+    <li><span class="sev info">info</span>Group 7 writes <code>1.3.0</code> into <code>roadmap.md</code> / <code>tech-stack.md</code> before Group 8 sets it in the manifests; the repo is only consistent once Wave 5 completes, so Group 8 must not be skipped or deferred.</li>
+    <li><span class="sev warning">warning</span>ts-jest emits hint TS151001 (<code>esModuleInterop</code>) as a warning; it must be left as a warning — enabling the flag breaks <code>childTypes.ts</code> / <code>templates.ts</code> (TS2349, proved in the spec audit). Optional silence: <code>diagnostics: { ignoreCodes: [151001] }</code>.</li>
+    <li><span class="sev info">info</span><code>grunt package-dev</code> is broken on Node v22 (<code>--rev-version</code>); verification uses <code>npx grunt build</code> only. No live Azure DevOps org is available, so success criterion 8 stays a manual checklist.</li>
+    <li><span class="sev info">info</span>Integer-typed target fields (Priority, Business Value) reject non-integer results with HTTP 400 and show as <code>Failed</code> — mitigated by documentation (R19) only.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents: <a href="#waves">Waves</a> · <a href="#groups">Task Groups</a> · <a href="#coverage">Requirements Coverage</a> · <a href="#verify">Verification</a> · <a href="#manual">Manual Checklist</a> · <a href="#standards">Standards</a></nav>
+
+<main>
+<h2 id="waves">Execution Waves</h2>
+<p>Baseline: HEAD <code>551aa91</code>. <code>src/scripts/app.js</code> is a tracked legacy artifact and is <b>never</b> edited. All commands run from <code>src/</code> unless noted.</p>
+<div class="waves">
+  <div class="wave"><div class="w">Wave 1</div><div class="g">Group 1</div><div class="why">Everything needs the harness</div></div>
+  <div class="wave"><div class="w">Wave 2</div><div class="g">Groups 2 · 3 · 4</div><div class="why">Disjoint files: evaluator / templateFilters / progressDialogController</div></div>
+  <div class="wave"><div class="w">Wave 3</div><div class="g">Group 5</div><div class="why">Needs evaluator (2), pinned substitution (3), widened TemplateOutcome (4)</div></div>
+  <div class="wave"><div class="w">Wave 4</div><div class="g">Groups 6 · 7</div><div class="why">Verification touches only tests/; docs touch only markdown</div></div>
+  <div class="wave"><div class="w">Wave 5</div><div class="g">Group 8</div><div class="why">Must be last (R21)</div></div>
+</div>
+<div class="card scroll">
+  <b>Dependency graph</b>
+  <pre class="dep" style="margin:8px 0 0;">G1 ──┬──▶ G2 ──┐
+     ├──▶ G3 ──┼──▶ G5 ──┬──▶ G6 ──┐
+     └──▶ G4 ──┘         └──▶ G7 ──┴──▶ G8</pre>
+</div>
+
+<h2 id="groups">Task Groups</h2>
+
+<section data-group="1" class="group done">
+  <div class="g-head"><h3>Group 1: Test Infrastructure (Jest + ts-jest)</h3><span class="g-badge"></span><span class="cx medium">medium</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>None — Wave 1</dd>
+    <dt>Requirements</dt><dd>R15, R16, R17, R18 (location rule), T8 baseline</dd>
+    <dt>Files</dt><dd class="chips"><code>src/package.json</code><code>src/package-lock.json</code><code>src/jest.config.js</code> (new)<code>src/tsconfig.test.json</code> (new)<code>src/tests/templateFilters.test.ts</code> (new)</dd>
+    <dt>Tests</dt><dd>3 baseline (T8: substitution, <code>{A}+{A}</code>, numeric stringification)</dd>
+    <dt>Standards</dt><dd><code>global/conventions.md</code> <code>global/minimal-implementation.md</code> <code>testing/test-writing.md</code> <code>build-tooling/packaging.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="1.1" class="step done">Write 3 baseline <code>replaceReferenceToParentField</code> tests in <code>src/tests/templateFilters.test.ts</code> (T8, pre-existing behaviour) <span class="sub">Relative import from <code>../scripts/templateFilters</code>; never import <code>TFS/*</code> in value position from a test</span></li>
+    <li data-step="1.2" class="step done">Add <code>jest ^29.7.0</code>, <code>ts-jest ^29.2.5</code>, <code>@types/jest ^29.5.14</code> and <code>"test": "jest"</code> to <code>src/package.json</code>; run <code>npm install</code> (R15) <span class="sub">Do not touch <code>name</code>, <code>private</code>, <code>version</code></span></li>
+    <li data-step="1.3" class="step done">Create <code>src/jest.config.js</code> (R16): preset ts-jest, node env, <code>testMatch &lt;rootDir&gt;/tests/**/*.test.ts</code>, transform with <code>tsconfig.test.json</code></li>
+    <li data-step="1.4" class="step done">Create <code>src/tsconfig.test.json</code> (R17): extends tsconfig.json, <code>module commonjs</code>, <code>types [jest]</code>, <code>noEmit true</code>, include scripts+tests, files <code>tfs.d.ts</code> — <b>never</b> <code>esModuleInterop</code></li>
+    <li data-step="1.5" class="step done">Gate: <code>npx tsc --noEmit -p tsconfig.test.json</code> exit 0; <code>npm test</code> 3 green; nothing under <code>build/</code> <span class="sub">Fallback: <code>/// &lt;reference path="../node_modules/vss-web-extension-sdk/typings/tfs.d.ts" /&gt;</code> in the test file</span></li>
+  </ul>
+  <div class="acc"><b>Accept:</b> 3 tests pass; tsc gate exits 0; exactly three new devDependencies + test script; no <code>esModuleInterop</code>; <code>noEmit: true</code>.</div>
+</section>
+
+<section data-group="2" class="group done">
+  <div class="g-head"><h3>Group 2: Expression Evaluator Module</h3><span class="g-badge"></span><span class="cx high">high</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Group 1 — Wave 2</dd>
+    <dt>Requirements</dt><dd>R1–R7; T1–T7</dd>
+    <dt>Files</dt><dd class="chips"><code>src/scripts/expressionEvaluator.ts</code> (new)<code>src/tests/expressionEvaluator.test.ts</code> (new)</dd>
+    <dt>Tests</dt><dd>7 <code>test.each</code> blocks (T1 8 rows, T2 9, T3 6, T4 8, T5 15, T6 15, T7 5 = 66 rows)</dd>
+    <dt>Standards</dt><dd><code>global/validation.md</code> <code>global/error-handling.md</code> <code>global/minimal-implementation.md</code> <code>global/coding-style.md</code> <code>global/commenting.md</code> <code>testing/test-writing.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="2.1" class="step done">Write 7 <code>test.each</code> blocks, one per R18 table T1–T7, rows verbatim; assert <code>{ ok, value }</code> / <code>{ ok:false, reason }</code> shapes</li>
+    <li data-step="2.2" class="step done">Create module: 3 exports (<code>isExpression</code>, <code>evaluateExpression</code>, <code>EvaluationResult</code>), single type import from <code>./types</code>, private typed error, tokenizer per R3 with 0-based indices <span class="sub">No logging import, no throws to callers</span></li>
+    <li data-step="2.3" class="step done">Recursive-descent parser evaluating during parse (R4); one function per EBNF rule; allowlist checked before arguments; exact arity messages (R5); case-sensitive names</li>
+    <li data-step="2.4" class="step done">Placeholder resolution in <code>parsePrimary</code> (R6, 40-char + <code>…</code> truncation); boundary <code>try/catch</code>, <code>expression is empty</code>, <code>unexpected error: …</code>, <code>Number.isFinite</code> check (R7)</li>
+    <li data-step="2.5" class="step done">Gate: <code>npx jest tests/expressionEvaluator.test.ts</code> 66 rows green; eval/new Function grep empty; no <code>logging</code>/<code>console.</code> in module; tsc gate exit 0</li>
+  </ul>
+  <div class="acc"><b>Accept:</b> all 7 blocks pass; <code>evaluateExpression("=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)", { …: 2.5 })</code> → <code>{ ok: true, value: 5 }</code>; three exports, one import, no eval, no AST.</div>
+</section>
+
+<section data-group="3" class="group done">
+  <div class="g-head"><h3>Group 3: Substitution Helper Observability</h3><span class="g-badge"></span><span class="cx low">low</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Group 1 — Wave 2</dd>
+    <dt>Requirements</dt><dd>R14; T8 logging cases</dd>
+    <dt>Files</dt><dd class="chips"><code>src/scripts/templateFilters.ts</code><code>src/tests/templateFilters.test.ts</code></dd>
+    <dt>Tests</dt><dd>5 (console.error spy: missing once, <code>{A}+{A}</code> twice, null, stray <code>}</code> none, plain text none)</dd>
+    <dt>Standards</dt><dd><code>global/error-handling.md</code> <code>global/coding-style.md</code> <code>global/commenting.md</code> <code>testing/test-writing.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="3.1" class="step done">Add 5 logging tests with <code>jest.spyOn(console, "error").mockImplementation(() =&gt; {})</code>, restored in <code>afterEach</code></li>
+    <li data-step="3.2" class="step done">Guarded <code>logError</code> before the unchanged <code>replace</code>: value <code>undefined</code>/<code>null</code> and <code>fieldValue.indexOf('{' + name + '}') &gt;= 0</code>; message per R14 using the original value; regex/replace/signature untouched <span class="sub"><code>logError</code> already imported at <code>templateFilters.ts:2</code></span></li>
+    <li data-step="3.3" class="step done">Gate: <code>npx jest tests/templateFilters.test.ts</code> 8 green; tsc gate exit 0</li>
+  </ul>
+  <div class="acc"><b>Accept:</b> 8 tests pass; the 3 baseline outputs unchanged; one log per placeholder occurrence; stray-<code>}</code> logs nothing.</div>
+</section>
+
+<section data-group="4" class="group done">
+  <div class="g-head"><h3>Group 4: Outcome Type and Completion Dialog Wording</h3><span class="g-badge"></span><span class="cx low">low</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Group 1 — Wave 2</dd>
+    <dt>Requirements</dt><dd>R12, R13; T10</dd>
+    <dt>Files</dt><dd class="chips"><code>src/scripts/progressDialogController.ts</code><code>src/tests/progressDialogController.test.ts</code> (new)</dd>
+    <dt>Tests</dt><dd>5 (no warnings unchanged; 1 skipped; 1 + 2 skipped; Failed before Warnings; two work items)</dd>
+    <dt>Standards</dt><dd><code>global/coding-style.md</code> <code>global/commenting.md</code> <code>global/error-handling.md</code> <code>testing/test-writing.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="4.1" class="step done">Write 5 <code>formatCompletionMessage</code> tests (T10); import is safe under Jest — <code>VSS</code> is only touched inside dialog functions</li>
+    <li data-step="4.2" class="step done">Add <code>skippedFields?: string[]</code> to <code>TemplateOutcome</code> + JSDoc sentence (R12); <code>TemplateOutcomeStatus</code> unchanged</li>
+    <li data-step="4.3" class="step done">Extract exported pure <code>formatCompletionMessage</code>; append <code>. Warnings: Name (n field(s) skipped)</code> after <code>Failed:</code>; <code>showCompletionDialog</code> calls it; update its JSDoc (R13)</li>
+    <li data-step="4.4" class="step done">Gate: <code>npx jest tests/progressDialogController.test.ts</code> 5 green; tsc gate exit 0</li>
+  </ul>
+  <div class="acc"><b>Accept:</b> 5 tests pass; no-warning line byte-identical to today; <code>formatCompletionMessage</code> is the sole message builder.</div>
+</section>
+
+<section data-group="5" class="group done">
+  <div class="g-head"><h3>Group 5: Builder Integration and Caller Update</h3><span class="g-badge"></span><span class="cx medium">medium</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Groups 2, 3, 4 — Wave 3</dd>
+    <dt>Requirements</dt><dd>R8, R9, R10, R11; T9</dd>
+    <dt>Files</dt><dd class="chips"><code>src/scripts/templateBuilder.ts</code><code>src/scripts/workItemCreation.ts</code><code>src/tests/templateBuilder.test.ts</code> (new)</dd>
+    <dt>Tests</dt><dd>7 (mixed template → number 5 + string; failing expr; two failing; <code>=</code> on Title; failing Title no backfill; non-<code>=</code> + inheritance unchanged; <code>@me</code>/<code>@currentiteration</code> bypass)</dd>
+    <dt>Standards</dt><dd><code>global/error-handling.md</code> <code>global/minimal-implementation.md</code> <code>global/coding-style.md</code> <code>global/commenting.md</code> <code>testing/test-writing.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="5.1" class="step done">Write 7 <code>createWorkItemFromTemplate</code> tests (T9); templates <code>as any</code>, <code>{} as any</code> teamSettings, <code>setCtx</code> stub for <code>@me</code>, console.error spy</li>
+    <li data-step="5.2" class="step done"><code>templateBuilder.ts</code>: export <code>BuiltWorkItem</code>; import evaluator + <code>logError</code>; <code>=</code> branch inside the existing <code>else</code> (push number / logError R10 + skippedFields); inheritance branch and defaults block untouched (R8–R10)</li>
+    <li data-step="5.3" class="step done"><code>workItemCreation.ts</code>: <code>var built = …</code>; <code>built.patchDocument</code> in the fetch call and both <code>console.log</code>s; <code>created</code> outcome carries <code>skippedFields</code> only when non-empty; failed outcomes never do (R11)</li>
+    <li data-step="5.4" class="step done">Gate: <code>npx jest tests/templateBuilder.test.ts</code> 7 green; tsc gate exit 0 (compiles <code>workItemCreation.ts</code>); <code>npm test</code> 27 blocks green</li>
+  </ul>
+  <div class="acc"><b>Accept:</b> 7 tests pass; StoryPoints patch value is <code>typeof "number"</code>; console message matches R10; <code>skippedFields</code> only on created outcomes.</div>
+</section>
+
+<section data-group="6" class="group done">
+  <div class="g-head"><h3>Group 6: Build Verification and Test Gap Review</h3><span class="g-badge"></span><span class="cx low">low</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Group 5 — Wave 4 (parallel with 7)</dd>
+    <dt>Requirements</dt><dd>R18 build clause; Success Criteria 1, 3, 5</dd>
+    <dt>Files</dt><dd class="chips"><code>src/tests/*.test.ts</code> (additions only, max 10)</dd>
+    <dt>Tests</dt><dd>up to 10 additional (R2 precondition, whitespace-only body, <code>1.</code>/<code>1e3</code>, tabs/newlines, arity edges, <code>"0x10"</code>, skipped outcomes never in Warnings, non-<code>=</code> template logs nothing)</dd>
+    <dt>Standards</dt><dd><code>testing/test-writing.md</code> <code>global/minimal-implementation.md</code> <code>build-tooling/packaging.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="6.1" class="step done">Review the 27 blocks against R1–R14; add up to 10 strategic tests only where a behaviour is unpinned</li>
+    <li data-step="6.2" class="step done"><code>npm test</code> all green; <code>npx tsc --noEmit -p tsconfig.test.json</code> exit 0</li>
+    <li data-step="6.3" class="step done"><code>npx grunt build</code> succeeds; <code>../build/scripts</code> contains only <code>app.js</code>; bundle contains <code>expressionEvaluator</code>; no <code>describe(</code>/<code>test.each</code>/<code>jest</code> in the bundle <span class="sub">Never <code>grunt package-dev</code> (Node v22)</span></li>
+    <li data-step="6.4" class="step done">Static guards: eval/new Function grep empty; <code>git status</code> clean for <code>app.js</code>, <code>tsconfig.json</code>, <code>gruntfile.js</code>, <code>bundle-scripts.js</code>, <code>toolbar.html</code>; <code>git diff --stat -- src/scripts</code> lists exactly the five intended files</li>
+  </ul>
+  <div class="acc"><b>Accept:</b> npm test green (≤10 added); grunt build succeeds with evaluator in bundle and no test code; greps clean; legacy artifact untouched.</div>
+</section>
+
+<section data-group="7" class="group done">
+  <div class="g-head"><h3>Group 7: Documentation</h3><span class="g-badge"></span><span class="cx medium">medium</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Group 5 — Wave 4 (parallel with 6)</dd>
+    <dt>Requirements</dt><dd>R19, R20; Success Criterion 6</dd>
+    <dt>Files</dt><dd class="chips"><code>README.md</code><code>src/overview.md</code><code>.maister/docs/project/roadmap.md</code><code>.maister/docs/project/tech-stack.md</code><code>.maister/docs/INDEX.md</code></dd>
+    <dt>Tests</dt><dd>none — verified by <code>diff</code>/<code>grep</code> (7.7)</dd>
+    <dt>Standards</dt><dd><code>global/conventions.md</code> <code>global/commenting.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="7.1" class="step done">README: new <code>## Field values: placeholders and expressions ##</code> between What's New and Filtering templates — special-value table, <code>### Expressions ###</code> grammar prose + examples, numeric-parent rule, integer-field advice, failure behaviour incl. required-field caveat, cache tip (R19.1)</li>
+    <li data-step="7.2" class="step done">README: What's New bullet + <code>16 focused files</code>; Project Structure row for <code>expressionEvaluator.ts</code>; Usage step 4 <code>npm test</code>; <code>### Tests ###</code> replaces the "no automated test suite" line (R19.2–4)</li>
+    <li data-step="7.3" class="step done">Copy README.md over <code>src/overview.md</code>; <code>diff</code> empty</li>
+    <li data-step="7.4" class="step done"><code>roadmap.md</code>: versions 1.3.0 aligned 2026-08-27; Key Features; Recent Updates pointer; Phase 2 ticks + new filtering-coverage item; Technical Debt rewording (partial coverage; <code>app.js</code> item ticked, tracked legacy artifact per <code>551aa91</code>); Future Considerations feature ideas (R20)</li>
+    <li data-step="7.5" class="step done"><code>tech-stack.md</code>: Testing → Jest 29 + ts-jest, tests in <code>src/tests/</code>; Version Management → both manifests 1.3.0 (R20)</li>
+    <li data-step="7.6" class="step done"><code>INDEX.md</code>: Roadmap one-liner (partial test coverage (Jest), versions aligned) and Tech Stack one-liner (Jest 29 + ts-jest unit tests) (R20)</li>
+    <li data-step="7.7" class="step done">Verify: diff empty; greps for the heading, structure row, <code>npm test</code>, <code>16 focused files</code>, <code>1.3.0</code>, <code>Jest</code></li>
+  </ul>
+  <div class="acc"><b>Accept:</b> README and overview byte-identical with the new section, row, step and Tests subsection; roadmap/tech-stack/INDEX reflect feature, Jest and 1.3.0.</div>
+</section>
+
+<section data-group="8" class="group done">
+  <div class="g-head"><h3>Group 8: Version Alignment (final)</h3><span class="g-badge"></span><span class="cx low">low</span></div>
+  <dl class="g-meta">
+    <dt>Dependencies</dt><dd>Groups 6, 7 — Wave 5</dd>
+    <dt>Requirements</dt><dd>R21; Success Criterion 7</dd>
+    <dt>Files</dt><dd class="chips"><code>src/vss-extension.json</code><code>src/package.json</code><code>src/package-lock.json</code></dd>
+    <dt>Tests</dt><dd>none — <code>npm test</code> sanity re-run</dd>
+    <dt>Standards</dt><dd><code>build-tooling/packaging.md</code> <code>global/conventions.md</code></dd>
+  </dl>
+  <ul class="steps">
+    <li data-step="8.1" class="step done">Set <code>"version": "1.3.0"</code> in <code>vss-extension.json</code> (from 1.2.8) and <code>package.json</code> (from 1.1.17) — nothing else</li>
+    <li data-step="8.2" class="step done"><code>npm install --package-lock-only</code> so <code>package-lock.json</code> lines 3 and 9 read 1.3.0</li>
+    <li data-step="8.3" class="step done">Verify greps; <code>git diff --stat</code> shows only version lines beyond Group 1's changes; <code>npm test</code> still green</li>
+  </ul>
+  <div class="acc"><b>Accept:</b> both manifests and the lock file read 1.3.0; no other manifest key changed.</div>
+</section>
+
+<h2 id="coverage">Requirements Coverage</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Spec item</th><th>Covered by</th><th>Spec item</th><th>Covered by</th></tr></thead>
+  <tbody>
+    <tr><td>R1 expression marker</td><td>2.2; T1 in 2.1</td><td>R12 <code>skippedFields</code></td><td>4.2; consumed 5.3</td></tr>
+    <tr><td>R2 public API / no eval</td><td>2.2, 2.4; 2.5, 6.4</td><td>R13 dialog wording</td><td>4.3; T10 in 4.1</td></tr>
+    <tr><td>R3 tokenizer</td><td>2.2; T2, T3, T5, T6</td><td>R14 helper logging</td><td>3.2; T8 in 1.1 + 3.1</td></tr>
+    <tr><td>R4 grammar</td><td>2.3; T2, T3, T5</td><td>R15 tooling</td><td>1.2</td></tr>
+    <tr><td>R5 allowlist / arity</td><td>2.3; T4, T5</td><td>R16 jest.config.js</td><td>1.3</td></tr>
+    <tr><td>R6 placeholders</td><td>2.4; T6</td><td>R17 tsconfig.test.json + gate</td><td>1.4, 1.5; re-run 2.5, 3.3, 4.4, 5.4, 6.2</td></tr>
+    <tr><td>R7 result / errors</td><td>2.4; T5, T7</td><td>R18 test files / clean build</td><td>1.1, 2.1, 3.1, 4.1, 5.1, 6.1; 6.3</td></tr>
+    <tr><td>R8 <code>BuiltWorkItem</code></td><td>5.2; T9</td><td>R19 README / overview</td><td>7.1–7.3, 7.7</td></tr>
+    <tr><td>R9 <code>=</code> branch</td><td>5.2; T9</td><td>R20 roadmap / tech-stack / INDEX</td><td>7.4–7.7</td></tr>
+    <tr><td>R10 builder log</td><td>5.2; T9</td><td>R21 version 1.3.0 + lock</td><td>8.1–8.3</td></tr>
+    <tr><td>R11 caller update</td><td>5.3; 5.4</td><td>T1–T7 evaluator</td><td>2.1 blocks 1–7</td></tr>
+    <tr><td>T8 substitution</td><td>1.1 (3) + 3.1 (5)</td><td>T9 builder</td><td>5.1 (7)</td></tr>
+    <tr><td>T10 dialog</td><td>4.1 (5)</td><td>Success criteria 1–7 / 8</td><td>6.2–6.4, 2.1, 5.1, 4.1, 1.1, 7.7, 8.3 / manual checklist</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="verify">Verification Commands (from <code>src/</code>)</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Purpose</th><th>Command</th><th>Expected</th></tr></thead>
+  <tbody>
+    <tr><td>Whole-program type check</td><td><code>npx tsc --noEmit -p tsconfig.test.json</code></td><td>exit 0</td></tr>
+    <tr><td>Unit tests</td><td><code>npm test</code></td><td>all suites green</td></tr>
+    <tr><td>Single suite</td><td><code>npx jest tests/&lt;name&gt;.test.ts</code></td><td>green</td></tr>
+    <tr><td>Production build</td><td><code>npx grunt build</code></td><td>succeeds; <code>../build/scripts/app.js</code> only</td></tr>
+    <tr><td>Evaluator bundled</td><td><code>grep -c "expressionEvaluator" ../build/scripts/app.js</code></td><td>≥ 1</td></tr>
+    <tr><td>No test code shipped</td><td><code>grep -nE "describe\(|test\.each|jest" ../build/scripts/app.js</code></td><td>no output</td></tr>
+    <tr><td>No dynamic evaluation</td><td><code>grep -nE '\beval\s*\(|new\s+Function\b' scripts/expressionEvaluator.ts</code></td><td>no output</td></tr>
+    <tr><td>Docs identical</td><td><code>diff README.md src/overview.md</code> (repo root)</td><td>no output</td></tr>
+    <tr><td>Versions</td><td><code>grep -n '"version"' vss-extension.json package.json; sed -n '3p;9p' package-lock.json</code></td><td>all 1.3.0</td></tr>
+    <tr><td>Legacy artifact untouched</td><td><code>git status --short src/scripts/app.js</code></td><td>no output</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="manual">Manual Live-Org Checklist (Success Criterion 8)</h2>
+<div class="card">
+  <p>Clear <code>localStorage</code> keys starting with <code>linkedTasksAutomation.templateCache.</code> after every template edit, then:</p>
+  <ol>
+    <li>Double field (Story Points) with <code>=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)</code> on a parent with 2.5 → child has 5.</li>
+    <li>Integer field with <code>={Microsoft.VSTS.Common.Priority}/2</code> on a parent whose Priority is <b>3</b> → template <code>Failed</code> (HTTP 400), as documented.</li>
+    <li>Expression referencing an unset parent field → child created without that field; console shows the R10 error; dialog shows <code>Warnings: &lt;template&gt; (1 field skipped)</code>.</li>
+    <li>Title <code>Fix for {System.Title}</code> → unchanged behaviour.</li>
+  </ol>
+</div>
+
+<h2 id="standards">Standards Compliance</h2>
+<div class="card">
+  <ul>
+    <li><code>global/validation.md</code> — allowlisted grammar and function table; fail fast; specific per-field reasons</li>
+    <li><code>global/error-handling.md</code> — one private typed error caught at the boundary; skip field, still create child; dialog carries counts, console carries detail</li>
+    <li><code>global/minimal-implementation.md</code> — no AST, no operator tables, seven <code>Math</code> functions, no escape syntax, no field-type lookup; every export has a caller</li>
+    <li><code>global/coding-style.md</code>, <code>global/commenting.md</code> — camelCase, one function per grammar rule, JSDoc (why) on exports only, 4-space indent, no dead imports</li>
+    <li><code>global/conventions.md</code> — README/overview current and identical; three test-only devDependencies; <code>package.json</code> stays private</li>
+    <li><code>testing/test-writing.md</code> — behaviour-focused, descriptive names, only <code>console.error</code> spied</li>
+    <li><code>build-tooling/packaging.md</code> — manual release bump; manifest files/contributions untouched; name equals manifest id</li>
+  </ul>
+  <p style="color:var(--dim);font-size:12.5px;margin-bottom:0;">Never edit: <code>src/scripts/app.js</code>, <code>src/tsconfig.json</code>, <code>src/gruntfile.js</code>, <code>src/bundle-scripts.js</code>, <code>src/toolbar.html</code>.</p>
+</div>
+</main>
+</body>
+</html>
