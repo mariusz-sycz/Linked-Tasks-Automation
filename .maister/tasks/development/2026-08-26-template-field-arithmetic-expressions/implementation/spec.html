@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Arithmetic expressions in template field values</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; } h3 { font-size:14px; margin:18px 0 6px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; overflow-x:auto; font-size:12.5px; line-height:1.45; }
+pre code { background:none; padding:0; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+details { margin:10px 0; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+header { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+header .meta { color:var(--dim); font-size:12.5px; }
+.tldr { background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:var(--radius); padding:16px 18px; margin:14px 0; }
+.tldr h2 { margin-top:0; }
+.tldr ul { margin:6px 0 0 18px; padding:0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 4px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px) { .grid2 { grid-template-columns:1fr; } }
+.scope-in { border-top:4px solid var(--ok); } .scope-out { border-top:4px solid var(--crit); }
+.stories { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+.story { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+.story b { display:block; font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.prio { font-size:10.5px; font-weight:700; padding:1.5px 7px; border-radius:99px; }
+.prio.must { background:var(--crit-soft); color:var(--crit); }
+.prio.should { background:var(--warn-soft); color:var(--warn); }
+.chip { display:inline-block; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; background:var(--accent-soft); border-radius:4px; padding:1px 6px; margin:2px 2px 2px 0; }
+.flow { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+ul.tight { margin:6px 0 0 18px; padding:0; } ul.tight li { margin:3px 0; }
+.section-tag { color:var(--dim); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Specification: Arithmetic Expressions in Template Field Values</h1>
+  <span class="badge">spec</span>
+  <span class="meta">Generated 2026-08-27 · task <code>2026-08-26-template-field-arithmetic-expressions</code> · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></span>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>21</b><span>requirements</span></div>
+  <div class="tile"><b>10</b><span>reused components</span></div>
+  <div class="tile"><b>4</b><span>new components</span></div>
+  <div class="tile"><b>10</b><span>test groups</span></div>
+  <div class="tile"><b style="color:var(--warn)">medium</b><span>risk level</span></div>
+</div>
+
+<section class="tldr">
+  <h2>TL;DR</h2>
+  <p>A template field value whose trimmed form starts with <code>=</code> is evaluated by a new pure module <code>src/scripts/expressionEvaluator.ts</code> (tokenizer + recursive-descent parser, allowlisted grammar: numbers, <code>+ - * / %</code>, unary minus, parentheses, <code>{Field.Ref.Name}</code> placeholders resolved from the parent, <code>Math.ceil|floor|round|abs|min|max|pow</code>); the finite numeric result is pushed into the child's JSON-Patch document. <code>templateBuilder.ts</code> gains the <code>=</code> branch (evaluated instead of <code>replaceReferenceToParentField</code>) and returns <code>{ patchDocument, skippedFields }</code>; failures <code>logError</code> and skip the field, the child is still created, and <code>TemplateOutcome.skippedFields</code> drives a <code>Warnings: &lt;template&gt; (N field(s) skipped)</code> suffix in the existing completion dialog. Jest + ts-jest (CommonJS test tsconfig, tests in <code>src/tests/</code>) become the project's first test runner; README/overview/roadmap are updated and both manifests are set to <code>1.3.0</code> as the final step.</p>
+
+  <h3>Key Decisions</h3>
+  <ul>
+    <li><b><code>createWorkItemFromTemplate</code> returns <code>{ patchDocument, skippedFields }</code></b> instead of an out-parameter — single caller, explicit and unit-testable, no mutable argument threading.</li>
+    <li><b><code>skippedFields</code> attached only to <code>created</code> outcomes</b> — a failed template is already flagged by name; the warning means "created but incomplete".</li>
+    <li><b>Placeholders resolved inside the evaluator</b>; <code>replaceReferenceToParentField</code> is not called for <code>=</code> values — avoids <code>undefined</code>/<code>null</code>/<code>2--3</code>/string-injection failure modes; helper output stays byte-identical for non-<code>=</code> values.</li>
+    <li><b>One private typed error caught at the <code>evaluateExpression</code> boundary</b>; the module never throws to callers — matches <code>error-handling.md</code> and the catch/log/degrade philosophy.</li>
+    <li><b>Evaluation during parsing (no AST)</b> — tiny grammar, no second consumer; an AST would be a speculative abstraction.</li>
+    <li><b><code>formatCompletionMessage</code> extracted from <code>showCompletionDialog</code></b> — the only way to unit-test the exact dialog wording without stubbing the <code>VSS</code> global.</li>
+    <li><b>Jest 29 / ts-jest 29; <code>tsconfig.test.json</code> extends <code>tsconfig.json</code> with <code>module: commonjs</code>, <code>noEmit: true</code> and a <code>files</code> entry for <code>tfs.d.ts</code>; no <code>esModuleInterop</code></b> — it would make the <code>import * as Q from "q"; Q(...)</code> pattern in <code>childTypes.ts</code>/<code>templates.ts</code> fail with TS2349. Type-only <code>TFS/*</code> imports are elided, no <code>moduleNameMapper</code> stub needed; gate: <code>npx tsc --noEmit -p tsconfig.test.json</code> (from <code>src/</code>) exits 0.</li>
+    <li><b>Version <code>1.3.0</code> for both manifests</b> — new feature on top of the <code>1.2.8</code> already committed at HEAD <code>551aa91</code>; new minor per the <code>version-bump</code> decision; <code>package-lock.json</code> realigned with <code>npm install --package-lock-only</code>.</li>
+  </ul>
+
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">warning</span>Integer-typed ADO fields reject non-integer results with HTTP 400 → template shows as <code>Failed</code>; mitigated by documentation only (<code>Math.round</code>/<code>ceil</code>/<code>floor</code>).</li>
+    <li><span class="sev info">info</span>Baseline is HEAD <code>551aa91</code> ("Commit changes from last release", 2026-08-27): status-based <code>TemplateOutcome</code>, <code>vss-extension.json</code> already 1.2.8, <code>src/scripts/app.js</code> committed as a tracked legacy artifact; <code>git diff HEAD -- src/</code> is empty. All line references are against that commit.</li>
+    <li><span class="sev info">info</span>Templates are cached in <code>localStorage</code> for 4 h; manual verification must clear <code>linkedTasksAutomation.templateCache.*</code>.</li>
+    <li><span class="sev info">info</span>If ts-jest does not seed the SDK typings from tsconfig <code>files</code>, fallback is a <code>/// &lt;reference path="../node_modules/vss-web-extension-sdk/typings/tfs.d.ts" /&gt;</code> line in the affected test file.</li>
+    <li><span class="sev info">info</span>No live Azure DevOps org for automated verification; runtime behaviour is covered by the manual checklist in Success Criteria.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents: <a href="#goal">Goal</a> · <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#grammar">Grammar &amp; API</a> · <a href="#tests">Test Setup &amp; Cases</a> · <a href="#docs">Docs &amp; Version</a> · <a href="#reuse">Reuse vs New</a> · <a href="#approach">Technical Approach</a> · <a href="#standards">Standards</a> · <a href="#success">Success Criteria</a></nav>
+
+<main>
+
+<h2 id="goal">Goal</h2>
+<div class="card">Let template authors compute numeric child-field values from parent-field values with a safe, allowlisted arithmetic expression (<code>=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)</code>), while making every evaluation failure visible (console detail + dialog warning) without ever blocking child creation.</div>
+
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card scope-in">
+    <span class="section-tag">In scope</span>
+    <ul class="tight">
+      <li><code>expressionEvaluator.ts</code>: <code>=</code> detection, tokenizer, recursive-descent parser, <code>Math.*</code> allowlist, placeholder resolution, error taxonomy</li>
+      <li><code>templateBuilder.ts</code>: <code>=</code> branch, <code>{ patchDocument, skippedFields }</code> return, R10 log line</li>
+      <li><code>workItemCreation.ts</code> / <code>progressDialogController.ts</code>: <code>skippedFields</code> on created outcomes, <code>Warnings:</code> dialog suffix, <code>formatCompletionMessage</code></li>
+      <li><code>replaceReferenceToParentField</code>: <code>logError</code> on <code>undefined</code>/<code>null</code> placeholder (output unchanged)</li>
+      <li>Jest + ts-jest setup (<code>jest.config.js</code>, <code>tsconfig.test.json</code>, <code>npm test</code>), tests in <code>src/tests/</code></li>
+      <li>README.md + src/overview.md section, Project Structure row, <code>npm test</code> docs; roadmap.md + tech-stack.md updates</li>
+      <li>Both manifests to <code>1.3.0</code> as the final step</li>
+    </ul>
+  </div>
+  <div class="card scope-out">
+    <span class="section-tag">Out of scope</span>
+    <ul class="tight">
+      <li><code>**</code>, unary <code>+</code>, comparisons, ternary, logical ops, strings, variables, extra <code>Math</code> functions, exponent literals</li>
+      <li>Escape syntax for a literal leading <code>=</code></li>
+      <li>Field-type lookup or automatic rounding for integer fields</li>
+      <li>Any output change of <code>replaceReferenceToParentField</code> for non-<code>=</code> values</li>
+      <li>Field names/expressions in the dialog; any new dialog or UI</li>
+      <li><code>src/scripts/app.js</code> (tracked legacy artifact from <code>551aa91</code> — do not edit), <code>toolbar.html</code>, bundler, gruntfile, <code>tsconfig.json</code>, manifest beyond version</li>
+      <li>CI/CD, linting, <code>bugsBehavior</code> bug, <code>'init v0.0.1'</code> log line</li>
+      <li>Tests for filtering, caching, REST transport, orchestrator (roadmap follow-up)</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story"><b>Template author</b>Write <code>=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)</code> in a task template's Story Points field so each generated task gets Story Points derived from its parent without manual editing.</div>
+  <div class="story"><b>Template author</b>A mistyped or unresolvable expression skips only that field, not the whole task, so a typo never stops the breakdown from being created.</div>
+  <div class="story"><b>User clicking "Create linked tasks"</b>The completion dialog tells me which templates had fields skipped so I do not silently end up with tasks missing values.</div>
+  <div class="story"><b>Developer</b><code>npm test</code> runs unit tests for the evaluator, placeholder substitution, builder and dialog wording so parser changes are safe to make.</div>
+  <div class="story"><b>Marketplace user</b>The placeholder and expression syntax (including the integer-field rounding rule) is documented on the overview page so I can adopt the feature without reading source.</div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<div class="card" style="padding:0 0 4px">
+<table>
+  <thead><tr><th style="width:52px">ID</th><th>Requirement</th><th style="width:150px">Area</th><th style="width:70px">Priority</th></tr></thead>
+  <tbody>
+    <tr><td>R1</td><td>Trimmed value starting with <code>=</code> is an expression; body = rest, trimmed. No escape for a literal leading <code>=</code>. <code>" =1"</code> yes, <code>"x=1"</code> no, <code>"="</code> yes (empty body → error).</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R2</td><td>Exports exactly <code>isExpression</code>, <code>evaluateExpression(fieldValue, currentWorkItem)</code>, <code>EvaluationResult</code>. Synchronous, type-imports only <code>WorkItemFields</code>, never throws, never logs, no <code>eval</code>/<code>new Function</code>/third-party parser.</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R3</td><td>Tokenizer: whitespace skipped; <code>NUMBER</code> (<code>2</code>, <code>0.5</code>, <code>.5</code>; no exponent/sign/<code>1.</code>); <code>FIELD</code> <code>{…}</code> verbatim name, <code>{}</code>, unterminated and nested <code>{</code> (<code>unexpected character '{' at index i</code>) are errors; <code>IDENT</code> followed by <code>(</code> → call (must be <code>Math.&lt;fn&gt;</code>, else <code>unsupported function</code>), not followed by <code>(</code> → <code>unknown identifier</code>; <code>OP</code> <code>+ - * / %</code>; parens, comma; other chars → <code>unexpected character 'c' at index i</code>.</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R4</td><td>EBNF grammar with JS precedence: parens/calls &gt; unary minus (stackable) &gt; <code>* / %</code> (left) &gt; <code>+ -</code> (left). Trailing tokens / premature end are errors. No <code>**</code>, unary <code>+</code>, comparisons, ternary, strings, variables.</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R5</td><td>Allowlist: <code>Math.ceil/floor/round/abs</code> (1 arg), <code>Math.pow</code> (2), <code>Math.min/max</code> (≥1); case-sensitive; arity errors name the function and counts.</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R6</td><td>Placeholder resolution from <code>currentWorkItem[name]</code>: finite number → as-is; numeric string → <code>Number()</code>; <code>undefined</code> → <code>missing</code>; <code>null</code>/empty string → <code>empty</code>; anything else → <code>value '&lt;shown&gt;' is not numeric</code> where <code>&lt;shown&gt;</code> is <code>String(v)</code> truncated to 40 characters + <code>…</code> when longer. Repeated references allowed; first failure wins.</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R7</td><td>Final value must be finite (<code>result is not a finite number</code> otherwise); every failure is <code>{ ok:false, reason }</code> with a short, actionable reason (the only embedded parent value is the R6 fragment, bounded at 40 chars + <code>…</code>); unforeseen errors → <code>unexpected error: …</code>.</td><td>Evaluator</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R8</td><td><code>createWorkItemFromTemplate</code> returns <code>BuiltWorkItem = { patchDocument, skippedFields }</code>; <code>skippedFields</code> holds field ref names in template order.</td><td>Builder</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R9</td><td>Inside the existing loop: if <code>isExpression</code> → evaluate; ok → push native number; fail → log (R10), push nothing, record key. Else → today's <code>replaceReferenceToParentField</code> path. <code>=</code> honoured on any field (a failing expression on a required field such as <code>System.Title</code> pushes nothing and is not backfilled → ADO rejects the child → <code>Failed</code>); <code>IsPropertyValid</code>, inheritance branch and defaults block unchanged.</td><td>Builder</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R10</td><td>Log format: <code>Template '&lt;name&gt;' field '&lt;ref&gt;': expression '&lt;raw&gt;' skipped - &lt;reason&gt;</code> via <code>logError</code> (new import in <code>templateBuilder.ts</code>).</td><td>Builder</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R11</td><td><code>createWorkItem</code> uses <code>built.patchDocument</code>; <code>created</code> outcome carries <code>skippedFields</code> only when non-empty; <code>failed</code>/<code>skipped</code> never do.</td><td>Outcomes</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R12</td><td><code>TemplateOutcome</code> gains optional <code>skippedFields?: string[]</code>; JSDoc extended; status union unchanged.</td><td>Outcomes</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R13</td><td>New exported pure <code>formatCompletionMessage</code>; line = base + <code>. Failed: …</code> + <code>. Warnings: Name (1 field skipped), Name (2 fields skipped)</code>; template name + count only; unchanged line when nothing skipped.</td><td>Outcomes</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R14</td><td><code>replaceReferenceToParentField</code>: signature and output unchanged (byte-identical); one <code>logError</code> per placeholder occurrence (per regex match) when the parent value is <code>undefined</code>/<code>null</code>, naming the field, original value and the substituted literal; log only when <code>fieldValue.indexOf('{' + parentField + '}') &gt;= 0</code> so stray-<code>}</code> matches (<code>"abc}"</code>) log nothing.</td><td>Filters</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R15</td><td>devDependencies <code>jest ^29.7.0</code>, <code>ts-jest ^29.2.5</code>, <code>@types/jest ^29.5.14</code>; script <code>"test": "jest"</code>; lockfile updated; no build-file changes.</td><td>Tests</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R16</td><td><code>src/jest.config.js</code>: ts-jest preset, node env, <code>testMatch &lt;rootDir&gt;/tests/**/*.test.ts</code>, transform pointing at <code>tsconfig.test.json</code>.</td><td>Tests</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R17</td><td><code>src/tsconfig.test.json</code>: extends <code>tsconfig.json</code>; <code>module commonjs</code>, <code>types ["jest"]</code>, <code>noEmit true</code>; <b>no <code>esModuleInterop</code></b> (<code>childTypes.ts:4</code>/<code>templates.ts:3</code> <code>import * as Q from "q"</code> + <code>Q(...)</code> would be TS2349); include <code>scripts/**</code> + <code>tests/**</code>; <code>files</code> = SDK <code>tfs.d.ts</code>. Gate: <code>npx tsc --noEmit -p tsconfig.test.json</code> from <code>src/</code> exits 0 over the whole program. ts-jest hint TS151001 may optionally be silenced via <code>diagnostics: { ignoreCodes: [151001] }</code>. Production tsconfig untouched.</td><td>Tests</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R18</td><td>Test files in <code>src/tests/</code>; behaviour-focused; only <code>console.error</code> spied; concrete case list T1-T10 (below); <code>npm test</code> green, <code>npm run build</code> unaffected.</td><td>Tests</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R19</td><td>README.md + src/overview.md (byte-identical): new "Field values: placeholders and expressions" section, What's New bullet (16 files), Project Structure row, <code>npm test</code> usage step and Tests subsection replacing the "no automated test suite" line.</td><td>Docs</td><td><span class="prio must">must</span></td></tr>
+    <tr><td>R20</td><td>roadmap.md: versions 1.3.0, Key Features, Recent Updates, Phase 2 items, Technical Debt reword, Future ideas, tick/reword the "Decide <code>app.js</code> version-control status" item (committed in <code>551aa91</code> as a tracked legacy artifact); tech-stack.md Testing + Version Management lines; <code>.maister/docs/INDEX.md</code> Roadmap and Tech Stack one-liners ("partial test coverage (Jest)" / "Jest 29 + ts-jest").</td><td>Docs</td><td><span class="prio should">should</span></td></tr>
+    <tr><td>R21</td><td>Final step: <code>"version": "1.3.0"</code> in both <code>src/vss-extension.json</code> (1.2.8 at HEAD <code>551aa91</code>) and <code>src/package.json</code> (1.1.17), then <code>npm install --package-lock-only</code> from <code>src/</code> so <code>package-lock.json</code> reads 1.3.0; nothing else changes.</td><td>Version</td><td><span class="prio must">must</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="grammar">Grammar, API and Error Taxonomy</h2>
+<div class="grid2">
+  <div class="card">
+    <span class="section-tag">Public API (R2)</span>
+<pre><code>isExpression(fieldValue: string): boolean
+evaluateExpression(fieldValue: string, currentWorkItem: WorkItemFields): EvaluationResult
+type EvaluationResult = { ok: true; value: number } | { ok: false; reason: string }</code></pre>
+    <span class="section-tag">Grammar (R4)</span>
+<pre><code>expression      = additive END ;
+additive        = multiplicative { ( "+" | "-" ) multiplicative } ;
+multiplicative  = unary { ( "*" | "/" | "%" ) unary } ;
+unary           = "-" unary | primary ;
+primary         = NUMBER | FIELD | call | "(" additive ")" ;
+call            = IDENT "(" [ additive { "," additive } ] ")" ;
+                  (* IDENT must be Math.&lt;fn&gt; *)</code></pre>
+    <p style="margin:6px 0 0;color:var(--dim);font-size:12.5px">Precedence, highest first: parens/calls · unary minus · <code>* / %</code> (left) · <code>+ -</code> (left). Examples: <code>1+2*3</code>=7, <code>(1+2)*3</code>=9, <code>2*-3</code>=-6, <code>10-4-3</code>=3, <code>--3</code>=3.</p>
+    <p style="margin:6px 0 0;color:var(--dim);font-size:12.5px"><code>primary</code> on <code>IDENT</code>: next token <code>(</code> → call; call not in the R5 table → <code>unsupported function '&lt;ident&gt;'</code>; <code>IDENT</code> without <code>(</code> → <code>unknown identifier '&lt;ident&gt;'</code>. <code>=abc(1)</code> → unsupported function 'abc'; <code>=Math.ceil</code> → unknown identifier 'Math.ceil'.</p>
+  </div>
+  <div class="card">
+    <span class="section-tag">Error reasons (R3, R5-R7)</span>
+    <table>
+      <tr><th>Class</th><th>Reason text</th></tr>
+      <tr><td>Empty body</td><td><code>expression is empty</code></td></tr>
+      <tr><td>Bad character</td><td><code>unexpected character 'c' at index i</code></td></tr>
+      <tr><td>Bad token / trailing</td><td><code>unexpected token 'x' at index i</code></td></tr>
+      <tr><td>Premature end</td><td><code>unexpected end of expression</code></td></tr>
+      <tr><td>Identifier</td><td><code>unknown identifier 'abc'</code> (no <code>(</code> follows) / <code>unsupported function 'Math.sqrt'</code> (call not allowlisted)</td></tr>
+      <tr><td>Arity</td><td><code>Math.pow expects 2 arguments, got 1</code> / <code>Math.min expects at least 1 argument, got 0</code></td></tr>
+      <tr><td>Field syntax</td><td><code>empty field reference at index i</code> / <code>unterminated field reference at index i</code> / nested <code>{</code> → <code>unexpected character '{' at index i</code></td></tr>
+      <tr><td>Field value</td><td><code>parent field 'n' is missing</code> / <code>is empty</code> / <code>value 'v' is not numeric</code></td></tr>
+      <tr><td>Result</td><td><code>result is not a finite number</code></td></tr>
+      <tr><td>Unforeseen</td><td><code>unexpected error: &lt;message&gt;</code></td></tr>
+    </table>
+  </div>
+</div>
+
+<details>
+  <summary>Tokenizer rules (R3)</summary>
+  <table>
+    <tr><th>Token</th><th>Rule</th></tr>
+    <tr><td>whitespace</td><td>space, tab, CR, LF between tokens are skipped; never part of a token</td></tr>
+    <tr><td><code>NUMBER</code></td><td><code>digits [ "." digits ]</code> or <code>"." digits</code>; no exponent, no sign, no <code>1.</code></td></tr>
+    <tr><td><code>FIELD</code></td><td><code>{</code> + one or more non-brace chars + <code>}</code>; content verbatim, case-sensitive; <code>{}</code> and missing <code>}</code> are errors; a <code>{</code> inside the reference → <code>unexpected character '{' at index i</code> (index of the inner <code>{</code>, e.g. <code>{A{B}</code> → index 2)</td></tr>
+    <tr><td><code>IDENT</code></td><td><code>[A-Za-z_][A-Za-z0-9_.]*</code>; the parser decides: followed by <code>(</code> → call, must be one of the seven <code>Math.&lt;fn&gt;</code> names else <code>unsupported function</code>; not followed by <code>(</code> → <code>unknown identifier</code> (even <code>Math.ceil</code>)</td></tr>
+    <tr><td><code>OP</code></td><td><code>+ - * / %</code></td></tr>
+    <tr><td><code>LPAREN RPAREN COMMA END</code></td><td><code>(</code> <code>)</code> <code>,</code> and end of body</td></tr>
+  </table>
+</details>
+
+<details>
+  <summary>Placeholder resolution table (R6) and dialog wording examples (R13)</summary>
+  <table>
+    <tr><th>Parent value</th><th>Result</th></tr>
+    <tr><td>finite <code>number</code></td><td>used as-is</td></tr>
+    <tr><td><code>string</code> with finite <code>Number()</code>, non-empty when trimmed</td><td><code>Number(v)</code></td></tr>
+    <tr><td><code>undefined</code></td><td><code>parent field 'n' is missing</code></td></tr>
+    <tr><td><code>null</code>, <code>""</code>, whitespace-only</td><td><code>parent field 'n' is empty</code></td></tr>
+    <tr><td>anything else</td><td><code>parent field 'n' value '&lt;shown&gt;' is not numeric</code> — <code>&lt;shown&gt;</code> = <code>String(v)</code>, truncated to its first 40 characters + <code>…</code> when longer</td></tr>
+  </table>
+  <p style="margin-top:12px"><b>Dialog lines</b></p>
+  <pre><code>Work item #123: 3 tasks of 3 templates created. Warnings: Task A (1 field skipped), Task B (2 fields skipped)
+Work item #123: 2 tasks of 3 templates created. Failed: Task C. Warnings: Task A (1 field skipped)
+Work item #123: 3 tasks of 3 templates created</code></pre>
+  <p><b>Builder log line (R10)</b></p>
+  <pre><code>linked-tasks-automation: Template 'Task A' field 'Microsoft.VSTS.Scheduling.StoryPoints': expression '=Math.ciel({Microsoft.VSTS.Scheduling.StoryPoints}*2)' skipped - unsupported function 'Math.ciel'</code></pre>
+  <p><b>Substitution helper log line (R14)</b></p>
+  <pre><code>linked-tasks-automation: Parent field 'Custom.Missing' referenced in template value 'Fix for {Custom.Missing}' is missing; substituting the literal text 'undefined'</code></pre>
+</details>
+
+<h2 id="tests">Test Setup and Cases</h2>
+<div class="grid2">
+  <div class="card">
+    <span class="section-tag">src/jest.config.js (R16)</span>
+<pre><code>module.exports = {
+  preset: "ts-jest",
+  testEnvironment: "node",
+  testMatch: ["&lt;rootDir&gt;/tests/**/*.test.ts"],
+  transform: {
+    "^.+\\.ts$": ["ts-jest", { tsconfig: "tsconfig.test.json" }]
+  }
+};</code></pre>
+  </div>
+  <div class="card">
+    <span class="section-tag">src/tsconfig.test.json (R17)</span>
+<pre><code>{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "types": ["jest"],
+    "noEmit": true
+  },
+  "include": ["scripts/**/*.ts", "tests/**/*.ts"],
+  "files": ["node_modules/vss-web-extension-sdk/typings/tfs.d.ts"]
+}</code></pre>
+    <p style="margin:6px 0 0;color:var(--dim);font-size:12.5px">No <code>esModuleInterop</code> (breaks <code>Q(...)</code> calls in <code>childTypes.ts</code>/<code>templates.ts</code>). Gate: <code>npx tsc --noEmit -p tsconfig.test.json</code> from <code>src/</code> exits 0.</p>
+  </div>
+</div>
+<div class="card" style="padding:0 0 4px">
+<table>
+  <thead><tr><th style="width:44px">#</th><th style="width:230px">File / group</th><th>Cases</th></tr></thead>
+  <tbody>
+    <tr><td>T1</td><td><code>tests/expressionEvaluator.test.ts</code> — <code>isExpression</code></td><td><code>"=1"</code>, <code>" =1"</code>, <code>"= 1"</code>, <code>"="</code> true; <code>"x=1"</code>, <code>"Fix: 2+2"</code>, <code>""</code>, <code>"{A}"</code> false</td></tr>
+    <tr><td>T2</td><td>literals and precedence</td><td><code>=2</code>, <code>=0.5</code>, <code>=.5</code>, <code>=1+2*3</code>→7, <code>=(1+2)*3</code>→9, <code>=10-4-3</code>→3, <code>=7%3</code>→1, <code>=8/2/2</code>→2, <code>= 2 * 3 </code>→6</td></tr>
+    <tr><td>T3</td><td>unary minus</td><td><code>=-2</code>, <code>=2*-3</code>→-6, <code>=--3</code>→3, <code>=2 - -3</code>→5, <code>=-(1+2)</code>→-3, <code>=+2</code>→<code>unexpected token '+' at index 0</code></td></tr>
+    <tr><td>T4</td><td>Math functions</td><td>ceil, floor, round, abs, min, max, pow, nested <code>=Math.max(Math.ceil(1.1), 1)</code>→2</td></tr>
+    <tr><td>T5</td><td>allowlist and arity errors</td><td><code>Math.sqrt</code>, <code>Math.random()</code>, <code>math.ceil</code>, <code>abc</code>, <code>Math.ceil</code> (no parens → unknown identifier), <code>abc(1)</code> (→ unsupported function 'abc'), <code>Math.pow(2)</code>, <code>Math.ceil(1,2)</code>, <code>Math.min()</code>, <code>2**3</code>, <code>1 2</code>, <code>(1</code>, <code>1+</code>, <code>=</code>, <code>1 ^ 2</code> — each with its specified reason</td></tr>
+    <tr><td>T6</td><td>placeholder resolution</td><td><code>{SP:5}</code> → <code>=Math.ceil({SP}*2)</code>=10, <code>={SP}+{SP}</code>=10, <code>"3"</code>, <code>" 2.5 "</code>, absent, <code>null</code>, <code>""</code>, <code>"abc"</code> → <code>value 'abc' is not numeric</code>, <code>true</code>, 60-char string → first 40 chars + <code>…</code>, <code>{}</code>, <code>={SP</code>, <code>={A{B}</code> → <code>unexpected character '{' at index 2</code>, dotted/spaced names verbatim</td></tr>
+    <tr><td>T7</td><td>non-finite results</td><td><code>=1/0</code>, <code>=0/0</code>, <code>=5%0</code>, <code>=Math.pow(10,400)</code> → error; <code>=Math.min(1/0, 1)</code>→1</td></tr>
+    <tr><td>T8</td><td><code>tests/templateFilters.test.ts</code> — <code>replaceReferenceToParentField</code></td><td>substitution, <code>{A}+{A}</code> both resolved, numeric stringified, missing → literal <code>undefined</code> + <code>console.error</code> called once with field name and <code>missing</code>, <code>{A}+{A}</code> with <code>A</code> missing → <code>undefined+undefined</code> and <code>console.error</code> called exactly twice, <code>null</code> → literal <code>null</code>, <code>"abc}"</code> → unchanged and no log, no placeholders → unchanged and no log</td></tr>
+    <tr><td>T9</td><td><code>tests/templateBuilder.test.ts</code> — <code>createWorkItemFromTemplate</code></td><td>numeric patch entry (<code>typeof === "number"</code>) beside a text substitution; failing expression → no entry, <code>skippedFields === [key]</code>, log contains template/field/expression/reason; two failures in order; <code>=</code> on <code>System.Title</code>; failing <code>=</code> on <code>System.Title</code> → no <code>/fields/System.Title</code> entry, no backfill, <code>skippedFields === ["System.Title"]</code>; non-<code>=</code> and <code>""</code> inheritance unchanged; <code>@me</code>/<code>@currentiteration</code> bypass</td></tr>
+    <tr><td>T10</td><td><code>tests/progressDialogController.test.ts</code> — <code>formatCompletionMessage</code></td><td>no warnings → unchanged; 1 skipped → <code>(1 field skipped)</code>; 1 and 2 → both, comma-joined; failed + warnings ordering; multiple work items → one line each</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="docs">Documentation and Version</h2>
+<div class="grid2">
+  <div class="card">
+    <span class="section-tag">README.md + src/overview.md (R19, byte-identical)</span>
+    <ul class="tight">
+      <li>New <code>## Field values: placeholders and expressions ##</code> between What's New and Filtering templates: special-value table (empty, <code>@me</code>, <code>@currentiteration</code>, <code>{Field}</code>, <code>=</code>), <code>### Expressions ###</code> with grammar prose, examples table, numeric-only rule, <b>integer-field <code>Math.round</code> advice</b>, failure behaviour (skip, dialog warning, console; a skipped <em>required</em> field such as Title → child rejected, template Failed, console still shows the error), 4-hour cache tip</li>
+      <li>What's New bullet + "16 focused files"</li>
+      <li>Project Structure row for <code>expressionEvaluator.ts</code></li>
+      <li>Usage step 4 <code>npm test</code>; <code>### Tests ###</code> subsection replaces the "no automated test suite" line</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="section-tag">roadmap.md, tech-stack.md, manifests (R20, R21)</span>
+    <ul class="tight">
+      <li>Roadmap Current State → 1.3.0 both; Key Features + Recent Updates; Phase 2 feature checked; Automated tests <code>[x]</code> with note + new <code>[ ]</code> "extend to template filtering"; Technical Debt reworded to partial coverage; Future ideas (escape syntax, integer rounding, more operators)</li>
+      <li>Roadmap Technical Debt: "Decide <code>src/scripts/app.js</code> version-control status" → <code>[x]</code>, reworded: committed in <code>551aa91</code> as a tracked legacy artifact</li>
+      <li>tech-stack.md: Testing line → Jest 29 + ts-jest; Version Management → both 1.3.0</li>
+      <li><code>.maister/docs/INDEX.md</code>: Roadmap one-liner → "partial test coverage (Jest), no CI/CD, no CONTRIBUTING.md", versions aligned; Tech Stack one-liner → mentions Jest 29 + ts-jest</li>
+      <li>Final step: <code>src/vss-extension.json</code> 1.2.8 → 1.3.0, <code>src/package.json</code> 1.1.17 → 1.3.0, then <code>npm install --package-lock-only</code> so <code>package-lock.json</code> reads 1.3.0</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="reuse">Reusable vs New Components</h2>
+<div class="card" style="padding:0 0 4px">
+<table>
+  <thead><tr><th style="width:70px">Kind</th><th>Component</th><th>Path</th><th>Use / justification</th></tr></thead>
+  <tbody>
+    <tr><td><span class="sev info">reuse</span></td><td><code>logError</code> / <code>logInfo</code></td><td><code>src/scripts/logging.ts</code></td><td>All new logging; no new helper</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td><code>WorkItemFields</code></td><td><code>src/scripts/types.ts:14</code></td><td>Evaluator input type; patch <code>value: any</code> already accepts a number</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td><code>IsPropertyValid</code></td><td><code>src/scripts/templateFilters.ts:177-192</code></td><td>Unchanged gate in front of the <code>=</code> branch</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td><code>replaceReferenceToParentField</code></td><td><code>src/scripts/templateFilters.ts:194-205</code></td><td>Path for every non-<code>=</code> value; gains a log call only</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td>builder loop</td><td><code>src/scripts/templateBuilder.ts:11-27</code></td><td><code>=</code> branch added inside existing <code>else</code></td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td><code>TemplateOutcome</code> / <code>showCompletionDialog</code></td><td><code>src/scripts/progressDialogController.ts:12-17, 58-86</code> (HEAD <code>551aa91</code>)</td><td>Extended; no new dialog or service call</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td><code>createWorkItem</code> outcome mapping</td><td><code>src/scripts/workItemCreation.ts:144-149</code></td><td>Created outcome gains <code>skippedFields</code></td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td><code>keepaliveFetchClient</code></td><td><code>src/scripts/keepaliveFetchClient.ts</code></td><td>Unchanged; <code>JSON.stringify</code> handles numbers</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td>build pipeline</td><td><code>gruntfile.js</code>, <code>bundle-scripts.js</code>, <code>tsconfig.json</code></td><td>Unchanged; optimizer inlines the new module</td></tr>
+    <tr><td><span class="sev info">reuse</span></td><td>SDK typings / reference precedent</td><td><code>node_modules/vss-web-extension-sdk/typings/tfs.d.ts</code>, <code>app.ts:1-2</code></td><td>Seeded via <code>tsconfig.test.json</code> <code>files</code>; fallback triple-slash reference</td></tr>
+    <tr><td><span class="sev warning">new</span></td><td><code>expressionEvaluator.ts</code></td><td><code>src/scripts/</code></td><td>Nothing parses or evaluates today; npm parser impractical with the RequireJS optimizer + minimal-dependency convention</td></tr>
+    <tr><td><span class="sev warning">new</span></td><td><code>BuiltWorkItem</code> return type</td><td><code>src/scripts/templateBuilder.ts</code></td><td>Builder has no way to report "processed but pushed nothing"; caller needs the list</td></tr>
+    <tr><td><span class="sev warning">new</span></td><td><code>formatCompletionMessage</code></td><td><code>src/scripts/progressDialogController.ts</code></td><td>Minimal extraction that makes dialog wording testable; immediate caller</td></tr>
+    <tr><td><span class="sev warning">new</span></td><td>Jest config, test tsconfig, test files</td><td><code>src/jest.config.js</code>, <code>src/tsconfig.test.json</code>, <code>src/tests/</code></td><td>No test infrastructure exists; AMD output cannot run under Jest</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="approach">Technical Approach</h2>
+<div class="card">
+<pre class="flow"><code>template.fields[key] (string, from ADO template API)
+  -&gt; IsPropertyValid(key)                       templateFilters.ts:177   (unchanged)
+  -&gt; '' ? inherit parent value                  templateBuilder.ts:14-18 (unchanged)
+  -&gt; isExpression(value) ?                      expressionEvaluator.ts   (new)
+       yes -&gt; evaluateExpression(value, currentWorkItem)
+                ok    -&gt; push { op:"add", path:"/fields/"+key, value:&lt;number&gt; }
+                error -&gt; logError(R10); skippedFields.push(key)
+       no  -&gt; replaceReferenceToParentField -&gt; push string  (unchanged)
+  -&gt; { patchDocument, skippedFields }           templateBuilder.ts (R8)
+  -&gt; keepaliveFetch.createWorkItem(patchDocument)             (unchanged)
+  -&gt; outcome { templateName, status:"created", skippedFields? } workItemCreation.ts (R11)
+  -&gt; formatCompletionMessage -&gt; showCompletionDialog          progressDialogController.ts (R13)</code></pre>
+<details>
+  <summary>Evaluator internals, typing and transport notes</summary>
+  <ul class="tight">
+    <li>Hand-rolled tokenizer producing R3 tokens with their index; recursive-descent parser with one function per grammar rule returning numbers directly (evaluation during parsing, no AST). Placeholder lookup in <code>primary</code> when a <code>FIELD</code> token is consumed.</li>
+    <li>One module-private typed error carrying the reason; <code>evaluateExpression</code> wraps parsing in a single <code>try/catch</code>, maps it to <code>{ ok:false, reason }</code>, maps anything else to <code>unexpected error: …</code>, then applies <code>Number.isFinite</code>. No shared state between calls.</li>
+    <li>ES2015, <code>strict: true</code>, camelCase, named exports, <code>const</code>/<code>let</code>, explicit return types on exports, JSDoc on exports only.</li>
+    <li>No type change in <code>types.ts</code>: the loop pushes <code>string | number</code> into <code>WorkItemFields</code> (<code>value: any</code>).</li>
+    <li>Transport unchanged: a JS number serialises as a JSON number; ADO validates Integer fields itself (400 → existing <code>failed</code> path).</li>
+    <li>Consistent with gap-analysis integration points 1-9; additions (<code>BuiltWorkItem</code>, <code>formatCompletionMessage</code>) stem from the Phase 2 <code>failure-visibility</code> scope expansion.</li>
+  </ul>
+</details>
+</div>
+
+<h2 id="standards">Implementation Guidance and Standards</h2>
+<div class="grid2">
+  <div class="card">
+    <span class="section-tag">Testing approach</span>
+    <ul class="tight">
+      <li>2-8 focused tests per implementation step group; R18 case list is the source of truth (T1-T7 evaluator, T8 filters, T9 builder, T10 dialog)</li>
+      <li>Verification runs only the new tests (<code>npm test</code> from <code>src/</code>); there is no other suite</li>
+      <li>Assert behaviour (values, <code>ok</code>/<code>reason</code>, patch entries, strings), never parser internals</li>
+      <li>Only <code>console.error</code> spied and restored; <code>teamSettings</code> passed as <code>{} as any</code> unless testing <code>@currentiteration</code></li>
+      <li>Every test file compiles under <code>strict: true</code>; type errors fail the run</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="section-tag">Standards compliance</span>
+    <ul class="tight">
+      <li><code>global/validation.md</code> — allowlist grammar/functions, fail fast, specific reasons</li>
+      <li><code>global/error-handling.md</code> — typed internal error at the boundary, graceful degradation, clear dialog wording</li>
+      <li><code>global/minimal-implementation.md</code> — no AST/visitor/config tables/extra functions/escape syntax/field-type lookup; every export has a caller</li>
+      <li><code>global/coding-style.md</code>, <code>commenting.md</code> — camelCase, focused functions, no dead code, timeless JSDoc on exports</li>
+      <li><code>global/conventions.md</code> — README current; <code>private</code> package; three test-only devDependencies</li>
+      <li><code>testing/test-writing.md</code> — behaviour-focused, descriptive names, fast, risk-based depth</li>
+      <li><code>build-tooling/packaging.md</code> — manual release bump; manifest entries untouched; name matches id</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+  <ol style="margin:0 0 0 18px;padding:0">
+    <li><code>npm test</code> passes all R18 cases; <code>npm run build</code> succeeds and <code>build/scripts/app.js</code> contains the evaluator but no test code.</li>
+    <li><code>evaluateExpression("=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)", { …: 2.5 })</code> → <code>{ ok:true, value:5 }</code>; builder emits <code>value: 5</code> with <code>typeof === "number"</code>.</li>
+    <li>Every failure class in R3-R7 yields the specified reason; module never throws; <code>grep -nE '\beval\s*\(|new\s+Function\b' src/scripts/expressionEvaluator.ts</code> returns nothing.</li>
+    <li>One failing expression still creates the child; exactly one R10 log line; dialog line ends with <code>. Warnings: &lt;template&gt; (1 field skipped)</code>; unaffected templates produce byte-identical lines.</li>
+    <li>Any non-<code>=</code> value produces the same patch entry as before (pinned by T8/T9).</li>
+    <li>README.md and src/overview.md byte-identical with the new section, row and test docs; roadmap.md and tech-stack.md reflect feature, tests and 1.3.0.</li>
+    <li>Both manifests read <code>"version": "1.3.0"</code>, and <code>src/package-lock.json</code> reads 1.3.0 at its root and <code>packages[""]</code> entries.</li>
+    <li>Manual live-org check (clear <code>linkedTasksAutomation.templateCache.*</code> first): Double field expression → correct value; Integer field <code>={Microsoft.VSTS.Common.Priority}/2</code> with parent Priority <b>3</b> (result 1.5) → <code>Failed</code> as documented; unset parent field → child created without field + console error + dialog warning; <code>Fix for {System.Title}</code> → unchanged.</li>
+  </ol>
+</div>
+
+<details>
+  <summary>Known limitations</summary>
+  <ul class="tight">
+    <li>Only the final result is checked for finiteness; absorbed intermediate non-finite values (e.g. <code>Math.min(1/0, 1)</code>) succeed — consistent with JavaScript.</li>
+    <li>Numeric-string acceptance uses <code>Number()</code>: <code>"0x10"</code>/<code>"1e3"</code> convert; <code>"Infinity"</code> is rejected by the finite check.</li>
+    <li>"Child is still created" holds only for optional fields: a failing <code>=expr</code> on a required field (e.g. <code>System.Title</code>) is neither pushed nor backfilled, so ADO rejects the child (400) and the template is reported as <code>Failed</code>, not <code>Warnings</code>; the console still shows the R10 error. Documented in R19; no field-type lookup added.</li>
+    <li><code>replaceReferenceToParentField</code> cannot log the template name (no template in its signature); its message identifies the template value instead.</li>
+  </ul>
+</details>
+
+</main>
+</body>
+</html>

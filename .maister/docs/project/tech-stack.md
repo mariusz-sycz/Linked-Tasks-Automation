@@ -20,7 +20,7 @@ This document describes the technology choices and rationale for Linked-Tasks-Au
 None — this is a frontend-only browser extension with no server-side component. All logic runs client-side against Azure DevOps REST APIs.
 
 ### Testing
-None currently. Adding a test framework (Jest recommended) is on the roadmap, to follow the TypeScript migration.
+Jest 29 + ts-jest (`npm test`), tests in `src/tests/` — pure unit tests of the expression evaluator, placeholder substitution, template builder and completion-dialog wording. Behaviour against a live Azure DevOps org is verified manually.
 
 ## Database
 None — the extension is stateless; all data is read from and written to Azure DevOps Work Item Tracking via REST APIs at runtime.
@@ -58,7 +58,7 @@ None currently — planned as part of the TypeScript migration (Phase 1 of the r
 - `Q` — promise library for async Azure DevOps REST API calls
 
 ## Version Management
-Two manifest files currently track version independently and have drifted: `vss-extension.json` (`1.1.17`, the Marketplace-facing version) and `package.json` (`0.10.1`, the npm-facing version). Aligning these is on the roadmap as part of Phase 1.
+Two manifest files carry the version: `vss-extension.json` (the Marketplace-facing version) and `package.json` (the npm-facing version, mirrored into `package-lock.json`). Both read `1.3.0` as of 2026-08-27; keep them aligned when bumping a release.
 
 ## Migration Path
 **JavaScript → TypeScript** is the planned migration:

@@ -55,12 +55,12 @@ function createWorkItem(workItemId: number, currentWorkItem: WorkItemFields, tas
 
     var witClient: WitClient = _WorkItemRestClient.getClient();
 
-    var newWorkItem: WorkItemFields[] = createWorkItemFromTemplate(currentWorkItem, taskTemplate, teamSettings);
+    var built = createWorkItemFromTemplate(currentWorkItem, taskTemplate, teamSettings);
 
-    return keepaliveFetch.createWorkItem(newWorkItem, taskTemplate.workItemTypeName)
+    return keepaliveFetch.createWorkItem(built.patchDocument, taskTemplate.workItemTypeName)
         .then(function (response: WorkItemContracts.WorkItem): Promise<TemplateOutcome> {
             console.log('Request to create work item request:');
-            console.log(newWorkItem);
+            console.log(built.patchDocument);
             console.log('Respond with result:');
             console.log(response);
             justCreatedTasks.push(response);
@@ -144,12 +144,16 @@ function createWorkItem(workItemId: number, currentWorkItem: WorkItemFields, tas
             return parentLinkPromise.then(function (parentLinkSucceeded: boolean): TemplateOutcome {
                 if (!parentLinkSucceeded) {
                     logError('Failed to link created task ' + response.id + ' to parent ' + workItemId + '.');
+                    return { templateName: taskTemplate.name, status: "failed" };
                 }
-                return { templateName: taskTemplate.name, status: parentLinkSucceeded ? "created" : "failed" };
+                if (built.skippedFields.length > 0) {
+                    return { templateName: taskTemplate.name, status: "created", skippedFields: built.skippedFields };
+                }
+                return { templateName: taskTemplate.name, status: "created" };
             });
         }, function (error: any): TemplateOutcome {
             console.log('Request to create work item request:');
-            console.log(newWorkItem);
+            console.log(built.patchDocument);
             console.log('Respond with ERROR result:');
             console.log(error);
             if (IsJsonString(error)) {

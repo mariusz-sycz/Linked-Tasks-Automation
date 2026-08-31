@@ -10,12 +10,46 @@ For example, if you're using a process inherited from the agile template with a 
 
 ## What's New ##
 
-The extension was rewritten from a single 629-line JavaScript file into a modular TypeScript codebase (`src/scripts/`, 15 focused files), which made it possible to add:
+The extension was rewritten from a single 629-line JavaScript file into a modular TypeScript codebase (`src/scripts/`, 16 focused files), which made it possible to add:
 
 * **Faster repeat runs** — templates, team settings, and work item type categories are cached in the browser (`localStorage`, 4-hour TTL), so a second "Create linked tasks" invocation in the same session skips those REST round trips entirely.
 * **Concurrent child creation** — templates whose `linkTo` rules don't depend on other just-created tasks are created in parallel instead of one at a time; only templates that genuinely depend on ordering (see [linkTo rules](#linkto-rules) below) stay sequential.
 * **Reliable creation on popup close** — create and link requests now use `fetch(..., { keepalive: true })` instead of the SDK's wrapped REST client, so work already dispatched keeps running server-side even if you close the work-item popup right after clicking.
 * **Visible progress** — a "Starting task creation..." notice appears immediately after clicking, and a completion summary reports how many tasks were created (and which templates failed, if any) once processing finishes — per work item, if you triggered it from more than one.
+* **Arithmetic expressions in template fields** — a template value starting with `=` is evaluated against the parent's fields, e.g. `=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)`; see [Field values: placeholders and expressions](#field-values-placeholders-and-expressions).
+
+## Field values: placeholders and expressions ##
+
+A template field value is applied to the child work item literally, except for these special forms:
+
+| Value | Effect |
+|---|---|
+| *(empty)* | Inherits the parent work item's value for that field |
+| `@me` | Assigns the child to the current user (`System.AssignedTo`) |
+| `@currentiteration` | Sets the team's current iteration (`System.IterationPath`) |
+| `{Field.Reference.Name}` | Replaced inside a text value with the parent's value for that field, e.g. `Fix for {System.Title}` |
+| `=expression` | Evaluated as an arithmetic expression against the parent's fields (see below) |
+
+### Expressions ###
+
+A value whose first non-whitespace character is `=` is treated as an expression; whitespace before the `=` and around the expression body is ignored. There is no escape syntax, so a field value cannot start with a literal `=`.
+
+Expressions support numbers (including decimals such as `0.5`), the operators `+`, `-`, `*`, `/` and `%`, unary minus, parentheses, `{Field.Reference.Name}` references to the parent's fields, and the functions `Math.ceil`, `Math.floor`, `Math.round`, `Math.abs`, `Math.min`, `Math.max` and `Math.pow`. Standard precedence applies: parentheses and function calls first, then unary minus, then `*` `/` `%`, then `+` `-`. Nothing else is accepted (no `**`, comparisons, text or variables).
+
+| Expression | Result |
+|---|---|
+| `=Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)` | Twice the parent's story points, rounded up |
+| `={Microsoft.VSTS.Scheduling.Effort}/2` | Half the parent's effort |
+| `=Math.max({Microsoft.VSTS.Scheduling.StoryPoints}-1, 1)` | The parent's story points minus one, but never below 1 |
+| `=Math.round({Microsoft.VSTS.Scheduling.StoryPoints}*0.3)` | 30% of the parent's story points, rounded to the nearest whole number |
+
+Referenced parent fields must hold a number (or numeric text); anything else — an empty or missing field, a date, a person, rich text — skips the field.
+
+Integer fields such as Priority or Business Value only accept whole numbers: wrap the expression in `Math.round`, `Math.ceil` or `Math.floor`, otherwise Azure DevOps rejects the child work item and the template is reported as failed.
+
+When an expression cannot be evaluated, the field is skipped and the child work item is still created without it. The completion dialog lists the affected templates as `Warnings: <template> (N fields skipped)`, and the reason (template, field, expression and what went wrong) is written to the browser console (F12) with the `linked-tasks-automation:` prefix. If the skipped field is required by the work item type (e.g. an expression on Title), Azure DevOps rejects the child and the template is reported as Failed instead; the console still shows the expression error.
+
+Tip: templates are cached for 4 hours, so a template edit is not picked up immediately. To use it right away, clear the `localStorage` keys starting with `linkedTasksAutomation.templateCache.` in the browser's developer tools.
 
 ## Filtering templates ##
 
@@ -92,6 +126,7 @@ The extension is a stateless, backend-less browser extension — all logic runs 
 | `templateClassifier.ts` | Splits templates into concurrent vs. sequential based on their `linkTo` rules |
 | `workItemCreation.ts` | Builds and sends the create/link requests, including all `linkTo` branches |
 | `templateBuilder.ts` | Builds a new work item's field set from its template and the parent |
+| `expressionEvaluator.ts` | Allowlisted arithmetic evaluator for `=`-prefixed template values (`{Field}` placeholders, `Math.*` subset) |
 | `templateFilters.ts` | `applywhen`/`notapplywhen` matching and template-description JSON parsing |
 | `childTypes.ts` | Resolves which child work item types apply to the parent's type |
 | `templates.ts` | Fetches (and caches) team templates |
@@ -102,6 +137,7 @@ The extension is a stateless, backend-less browser extension — all logic runs 
 1. Clone the repository
 2. `cd src && npm install` to install required local dependencies
 3. `npm run build` (or `npx grunt build`) to compile TypeScript and assemble the extension under `build/`
+4. `npm test` to run the unit tests
 
 ### Grunt tasks (run from `src/`) ###
 
@@ -126,5 +162,7 @@ Note: To avoid `tfx` prompting for your token when publishing, log in beforehand
 }
 ```
 
-There is no automated test suite yet; changes are verified manually against a live Azure DevOps org.
+### Tests ###
+
+`npm test` (from `src/`) runs the Jest unit tests in `src/tests/` covering the expression evaluator, placeholder substitution, template building and completion-dialog wording. Behaviour against a live Azure DevOps org is still verified manually.
 

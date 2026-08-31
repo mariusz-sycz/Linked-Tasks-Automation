@@ -1,6 +1,11 @@
 orchestrator:
-  started_phase: phase-2
-  completed_phases: [phase-1]
+  started_phase: phase-14
+  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-13, phase-14]
+  skipped_phases:
+    phase-3: "has_reproducible_defect is false"
+    phase-4: "ui_heavy is false"
+    phase-9: "Phase 3 (TDD Red) was not executed"
+    phase-12: "options.e2e_enabled is false - no browser-testable UI; requires a live Azure DevOps org"
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -8,15 +13,15 @@ orchestrator:
     mockup_format: html
     spec_audit_enabled: true
     skip_test_suite: true
-    e2e_enabled: null
-    user_docs_enabled: null
+    e2e_enabled: false  # no browser-testable UI; requires a live Azure DevOps org
+    user_docs_enabled: true  # creates_new_entities; confirmed by user at Phase 10
     code_review_enabled: true
     pragmatic_review_enabled: true
     reality_check_enabled: true
     production_check_enabled: true
     sequential: null
   created: "2026-08-26T17:29:48Z"
-  updated: "2026-08-27T05:01:56Z"
+  updated: "2026-08-30T10:44:32Z"
   task_path: .maister/tasks/development/2026-08-26-template-field-arithmetic-expressions
   task_ids: {}
   note: "TaskCreate/TaskUpdate tools unavailable in this session; phase tracking via this file + dashboard."
@@ -24,7 +29,7 @@ orchestrator:
 task:
   title: "Arithmetic expressions in template field values"
   description: "Allow template authors to write arithmetic/JavaScript-style expressions in template field values, e.g. \"Math.ceil({Microsoft.VSTS.Scheduling.StoryPoints}*2)\". Field placeholders are substituted with parent work item values, then the expression is parsed as a function and evaluated like standard JavaScript code, with the result written to the child work item field."
-  status: in_progress
+  status: completed
   tags: [templates, field-inheritance, expressions]
   priority: medium
 
@@ -38,9 +43,9 @@ project_context:
 task_context:
   risk_level: medium
   clarifications_resolved: true
-  scope_expanded: null
-  architecture_decision: null
-  tech_clarified: null
+  scope_expanded: true  # completion-dialog warnings for skipped expression fields
+  architecture_decision: "Hand-rolled allowlisted arithmetic evaluator (tokenizer + recursive-descent parser) in src/scripts/expressionEvaluator.ts; resolves {Field} placeholders itself; called from templateBuilder.ts for =-prefixed values"
+  tech_clarified: true  # architecture settled in Phases 1-2; Part A skipped (no competing approaches remain)
   task_characteristics:
     has_reproducible_defect: false
     modifies_existing_code: true
@@ -114,17 +119,155 @@ task_context:
         - "The uncommitted in-flight work already bumps vss-extension.json to 1.2.8 while package.json stays at 1.1.17; any version handling in this task lands on top of that."
       artifacts:
         - {path: analysis/gap-analysis.md, label: "Gap analysis", html: null}
-    scope_clarifications: {scope_expanded: null, summary: null}
+    scope_clarifications:
+      scope_expanded: true
+      summary: "User verified ADO accepts =-prefixed template values. Evaluator resolves {Field} placeholders itself (numbers + numeric strings), every =-value is an expression (parse failure -> log + skip), raw numeric result written, replaceReferenceToParentField gains logging only. Scope expanded: skipped fields surface as warnings in the completion dialog. Versions aligned to a new minor at the end; tests in src/tests; roadmap + README/overview test line updated."
+      decisions:
+        - {decision: "Authoring feasibility resolved - ADO accepts a template field value beginning with =", rationale: "verified by the user in a live org"}
+        - {decision: "Evaluator resolves {Field} placeholders itself", rationale: "textual splicing causes undefined/null/2--3/string-injection failures; in-evaluator lookup gives precise errors and a pure, testable module"}
+        - {decision: "{Field} values inside expressions: JS numbers and numeric strings; anything else -> error + skip", rationale: "custom text fields sometimes hold numeric strings; identities/dates/HTML can never survive arithmetic"}
+        - {decision: "Every value starting with = is an expression; trim; parse/evaluation failure -> log + skip the field", rationale: "consistent and heuristic-free; no escape for a literal leading = (documented limitation)"}
+        - {decision: "Write the raw numeric result; NaN/Infinity/division-by-zero are always errors -> skip", rationale: "docs instruct authors to wrap with Math.round/ceil/floor for integer fields"}
+        - {decision: "replaceReferenceToParentField: add logError on undefined/null placeholder; output unchanged", rationale: "replace-all verified working; existing users' output must stay byte-for-byte identical"}
+        - {decision: "SCOPE EXPANSION: extend TemplateOutcome with warnings and show 'created with N field(s) skipped' in the completion dialog", rationale: "user wants skipped fields visible outside the browser console"}
+        - {decision: "Align vss-extension.json and package.json to the same new minor version as the last step; fix roadmap Current State", rationale: "packaging standard requires manual bumps; roadmap claims an alignment that regressed"}
+        - {decision: "Minor defaults: tests in src/tests/*.test.ts; update roadmap.md; replace README/overview 'no test suite' line", rationale: "recommended defaults from gap analysis"}
+      risks:
+        - "Completion-dialog warning touches progressDialogController.ts and TemplateOutcome, which are modified in the uncommitted in-flight diff - implementation must build on the working-tree version."
+      artifacts:
+        - {path: analysis/scope-clarifications.md, label: "Scope clarifications", html: null}
     ui_mockups: {components_designed: [], summary: null}
-    specification: {summary: null, decisions: [], risks: [], artifacts: []}
-    architecture_decision: {decision: null, summary: null}
-    implementation_plan: {summary: null, decisions: [], risks: [], artifacts: []}
-    implementation: {summary: null, decisions: [], risks: [], artifacts: []}
-    verification: {summary: null, decisions: [], risks: [], artifacts: []}
+    specification:
+      summary: "Spec (21 requirements) pins the allowlisted =-prefixed evaluator (grammar, API, placeholder rules, error taxonomy), templateBuilder integration returning skippedFields, TemplateOutcome/dialog warnings via a testable formatCompletionMessage, Jest 29 + ts-jest setup with 10 test groups, docs and 1.3.0 version alignment."
+      requirement_count: 21
+      decisions:
+        - {decision: "createWorkItemFromTemplate returns { patchDocument, skippedFields } (BuiltWorkItem) instead of an out-parameter", rationale: "single caller at workItemCreation.ts:58; explicit, unit-testable, no mutable argument threading"}
+        - {decision: "skippedFields attached only to created outcomes", rationale: "failed templates are already flagged by name; the warning means 'created but incomplete'"}
+        - {decision: "Evaluator resolves {Field} placeholders itself; replaceReferenceToParentField not called for = values", rationale: "avoids undefined/null/2--3/string-injection failure modes; helper output stays byte-identical for non-= values"}
+        - {decision: "One private typed error caught at the evaluateExpression boundary; module never throws or logs", rationale: "error-handling.md typed exceptions + centralized handling; caller owns the log so it can name template and field"}
+        - {decision: "Evaluate during parsing, no AST", rationale: "tiny grammar with no second consumer; AST would be a speculative abstraction (minimal-implementation.md)"}
+        - {decision: "Extract formatCompletionMessage from showCompletionDialog", rationale: "only way to unit-test exact dialog wording without stubbing the VSS global; has an immediate caller"}
+        - {decision: "tsconfig.test.json extends tsconfig.json with module commonjs, types [jest], and files: [tfs.d.ts]; no moduleNameMapper", rationale: "verified with tsc that type-only TFS/* namespace imports are elided under CommonJS"}
+        - {decision: "Version 1.3.0 for both manifests, applied as the last step", rationale: "new feature on top of the in-flight 1.2.8 bump; new minor per the version-bump decision; packaging.md requires manual release bumps"}
+      risks:
+        - "Integer-typed ADO fields reject non-integer results with 400 -> template shows as Failed; mitigated by documentation only"
+        - "progressDialogController.ts / workItemCreation.ts / orchestrator.ts / app.ts have uncommitted modifications; spec targets the working tree, not git HEAD"
+        - "Templates cached in localStorage for 4h; manual verification must clear linkedTasksAutomation.templateCache.* keys"
+        - "If ts-jest does not seed SDK typings from tsconfig files, a triple-slash reference in the affected test file is the fallback"
+        - "No live Azure DevOps org for automated runtime verification; covered by the manual checklist in Success Criteria"
+      artifacts:
+        - {path: analysis/requirements.md, label: "Requirements", html: null}
+        - {path: implementation/spec.md, label: "Specification", html: implementation/spec.html}
+    architecture_decision: {decision: "Allowlisted recursive-descent arithmetic evaluator, no new Function", summary: "Decided across Phase 1 clarifications and Phase 2 scope decisions; no Part A technical clarification needed."}
+    spec_audit:
+      verdict: pass_with_concerns
+      issue_counts: {critical: 0, major: 1, minor: 9}
+      gate_decision: "Apply all 10 recommended spec changes, then plan"
+      fixes_applied: "All 10 audit recommendations applied to spec.md/spec.html by specification-creator; baseline reworded to HEAD 551aa91"
+      summary: "Verdict pass_with_concerns: 0 critical, 1 major, 9 minor. All requirements/decisions covered and line-number claims accurate. Major: R17 esModuleInterop:true breaks tsc under CommonJS (Q(...) not callable in childTypes.ts/templates.ts) - drop the flag, add noEmit. Also: skipping a required field (e.g. =expr on System.Title) yields a Failed template, needs a Known Limitation; the 'uncommitted working tree' framing is stale (commit 551aa91 committed it all, app.js now tracked)."
+      decisions: []
+      risks:
+        - "tsconfig.test.json inherits outDir ../build/scripts; a manual tsc -p tsconfig.test.json would emit CommonJS into build/ - mitigated by noEmit:true"
+        - "VS Code type-checks src/tests/*.ts against src/tsconfig.json (types: []), so Jest globals show as errors in the editor even though npm test passes; optional src/tests/tsconfig.json"
+        - "Existing template values that already start with '=' change behaviour (accepted FINAL decision, no escape)"
+        - "R14 relies on the pre-existing regex that matches text before '}' without a '{', so a stray '}' will log a misleading 'missing field' message (output unchanged)"
+      artifacts:
+        - {path: verification/spec-audit.md, label: "Spec audit", html: null}
+    implementation_plan:
+      summary: "8 task groups / 35 steps in 5 waves: (1) Jest harness, (2|3|4) evaluator module, substitution logging, outcome/dialog wording in parallel, (5) builder integration, (6|7) build verification + docs, (8) version 1.3.0 last. Every R1-R21 and T1-T10 mapped in the coverage matrix."
+      task_group_count: 8
+      total_steps: 35
+      waves: [[1],[2,3,4],[5],[6,7],[8]]
+      decisions:
+        - {decision: "T8's three behaviour-pinning cases are written in Group 1 before any production change", rationale: "They double as the ts-jest harness proof (a module with type-only TFS/* imports compiles) and as the byte-identical baseline for non-= values"}
+        - {decision: "Evaluator tests are seven test.each blocks, one per spec table", rationale: "Keeps the 2-8 tests-per-group rule at block level while covering all 66 R18 rows verbatim"}
+        - {decision: "TemplateOutcome.skippedFields + formatCompletionMessage form their own group (4), independent of the evaluator", rationale: "workItemCreation.ts needs the widened type to compile under strict; Group 5 becomes the single editor of that file"}
+        - {decision: "replaceReferenceToParentField logging (R14) is a separate group (3)", rationale: "Different file, no shared state, enables three-way parallelism in Wave 2"}
+        - {decision: "Build verification and test gap review are merged into Group 6", rationale: "Both are read-mostly checks over finished code; both must pass before docs claim npm test coverage"}
+        - {decision: "Docs (Group 7) depend on Group 5, not Group 6", rationale: "Content is fully specified by R19/R20; running alongside verification shortens the critical path"}
+      risks:
+        - "Group 1 requires network access for npm install of Jest/ts-jest/@types/jest; registry unavailability stalls Wave 1"
+        - "package-lock.json is rewritten by Group 1 and Group 8; declared in both so the executor serializes them; never hand-edit"
+        - "Group 7 writes 1.3.0 into roadmap/tech-stack before Group 8 sets it in the manifests; repo is consistent only after Wave 5"
+        - "ts-jest hint TS151001 must stay a warning; enabling esModuleInterop breaks childTypes.ts/templates.ts (TS2349)"
+        - "grunt package-dev is broken on Node v22; verification uses npx grunt build only; no live org, so success criterion 8 is manual"
+        - "TaskCreate/TaskUpdate unavailable in this session; no task-system items were created"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: "Implementation plan", html: implementation/implementation-plan.html}
+    implementation:
+      summary: "All 8 task groups (43 steps) executed in 5 waves via task-group-implementer; 95 Jest tests green across 4 suites, whole-program tsc clean, grunt build succeeds with the evaluator inlined and no test code; both manifests + lock at 1.3.0; README/overview/roadmap/tech-stack/INDEX updated. Only the manual live-org checklist remains."
+      test_results: "npm test: 4 suites / 95 passed / 0 failed; tsc --noEmit -p tsconfig.test.json exit 0; grunt build exit 0"
+      files_changed:
+        - "src/scripts/expressionEvaluator.ts (new)"
+        - "src/scripts/templateBuilder.ts"
+        - "src/scripts/templateFilters.ts"
+        - "src/scripts/workItemCreation.ts"
+        - "src/scripts/progressDialogController.ts"
+        - "src/jest.config.js (new)"
+        - "src/tsconfig.test.json (new)"
+        - "src/package.json"
+        - "src/package-lock.json"
+        - "src/vss-extension.json"
+        - "src/tests/expressionEvaluator.test.ts (new)"
+        - "src/tests/templateFilters.test.ts (new)"
+        - "src/tests/templateBuilder.test.ts (new)"
+        - "src/tests/progressDialogController.test.ts (new)"
+        - "README.md"
+        - "src/overview.md"
+        - ".maister/docs/INDEX.md"
+        - ".maister/docs/project/roadmap.md"
+        - ".maister/docs/project/tech-stack.md"
+      decisions:
+        - {decision: "Parent-link callback in workItemCreation.ts uses three explicit returns (failed / created+skippedFields / created) instead of ternary + conditional property", rationale: "same outcomes as R11, more readable (Group 5)"}
+        - {decision: "'1.' -> unexpected character '.' at index 1; '=1e3' -> unexpected token 'e3' at index 1", rationale: "spec R3/R4 have no exponent/trailing-dot rule; both now pinned by tests (Groups 2, 6)"}
+        - {decision: "Allowlist implemented as own-property-guarded object literal checked before argument parsing", rationale: "prevents prototype-chain names leaking in; =Math.sqrt({missing}) reports unsupported function, not a field error (Group 2)"}
+        - {decision: "Warnings filter on status === 'created' explicitly", rationale: "defensive R12 invariant at zero cost (Group 4)"}
+        - {decision: "9 gap tests added (cap 10); builder no-= candidate skipped as already covered", rationale: "risk-based per test-writing.md (Group 6)"}
+        - {decision: "tech-stack.md stale 'JavaScript / planned TypeScript migration' wording left untouched", rationale: "beyond R20 scope; recommended as a follow-up docs refresh (Group 7)"}
+      risks:
+        - "Manual live-org verification (spec Success Criterion 8) is still open: clear linkedTasksAutomation.templateCache.* localStorage keys, then check Story Points 2.5 -> 5, Priority 3 -> /2 = Failed (400), unset parent field -> Warnings line, plain {System.Title} unchanged."
+        - "npm audit reports 23 pre-existing vulnerabilities in transitive devDependencies (out of scope; unchanged by this task)."
+        - "Git autocrlf warnings on package.json/package-lock.json/vss-extension.json (files were LF in the working tree; endings not altered)."
+        - "'=1e3' reason wording ('unexpected token e3') is spec-conformant but could be friendlier - possible follow-up."
+      artifacts:
+        - {path: implementation/work-log.md, label: "Work log", html: null}
+        - {path: implementation/implementation-plan.md, label: "Implementation plan (all steps checked)", html: implementation/implementation-plan.html}
+    verification:
+      summary: "Verdict: Passed with Issues. Completeness (100%), code review (clean, 5 info), pragmatic review (appropriate, 2 low), and reality assessment (Ready/GO) all pass outright; production readiness returns GO WITH MITIGATIONS (88%, 0 blockers, 3 concerns — all pre-disclosed process items, not code defects, not fixable in this environment)."
+      decisions:
+        - {decision: "No AST / evaluate-during-parse", rationale: "grammar has one consumer and no second use case is planned; matches minimal-implementation.md (validated by pragmatic review)"}
+        - {decision: "Allowlist via own-property-guarded object literal rather than dynamic Math[name] lookup", rationale: "closes a prototype-pollution/arbitrary-Math-member class of bug at negligible cost (validated by code review)"}
+        - {decision: "User chose 'Proceed as-is' at the Phase 11 fix-loop gate", rationale: "none of the 3 warnings are code-fixable in this environment (live-org access required, or pre-existing/out-of-scope); the 10 info items are optional polish with no functional impact"}
+      risks:
+        - "Live-org manual verification (Success Criterion 8) not performed — no Azure DevOps org available in this environment; mitigated by the project's private grunt publish-dev channel before public release."
+        - "No error-tracking/telemetry service exists anywhere in this codebase — pre-existing, project-wide condition, not introduced by this feature."
+        - "localStorage template cache (4h TTL) can mask verification results if not cleared before manual testing — already documented as a tip in README/overview."
+      artifacts:
+        - {path: verification/implementation-verification.md, label: "Implementation verification", html: verification/implementation-verification.html}
+        - {path: verification/completeness-check.md, label: "Completeness check", html: null}
+        - {path: verification/code-review-report.md, label: "Code review", html: null}
+        - {path: verification/pragmatic-review.md, label: "Pragmatic review", html: null}
+        - {path: verification/production-readiness-report.md, label: "Production readiness", html: null}
+        - {path: verification/reality-check.md, label: "Reality check", html: null}
+
+    user_documentation:
+      summary: "User guide written for template authors: how to write '=' formulas, worked examples pulled from spec R19, operator/Math.* reference tables, placeholder syntax, and the exact skipped-field warning wording. Reused the extension's existing genuine product screenshots since the formula field and completion dialog only render inside a live Azure DevOps iframe, unreachable by Playwright here."
+      decisions:
+        - {decision: "Reused existing genuine product screenshots instead of fabricating captures", rationale: "the feature's UI only renders inside a live ADO iframe via VSS.init(), unreachable by Playwright in this environment (same constraint that skipped Phase 12)"}
+      risks: []
+      artifacts:
+        - {path: documentation/user-guide.md, label: "User guide", html: null}
 
 verification_context:
-  last_status: null
-  issues_found: []
+  last_status: passed_with_issues
+  issues_found:
+    - {severity: warning, category: production_readiness, description: "Live-org manual verification (Success Criterion 8) not performed - no Azure DevOps org available in this environment", fixable: false}
+    - {severity: warning, category: production_readiness, description: "No error-tracking/telemetry service exists anywhere in this codebase (pre-existing, project-wide)", fixable: false}
+    - {severity: warning, category: production_readiness, description: "localStorage template cache (4h TTL) could mask manual-verification results if not cleared first", fixable: false}
+    - {severity: info, category: code_review, description: "5 informational polish items (micro-perf, typing, test-literal escape nit, untested NaN edge case, unbounded parser recursion)", fixable: true}
+    - {severity: info, category: pragmatic_review, description: "2 low-severity optional notes (single-file organization, mixed test-matcher pattern)", fixable: true}
+    - {severity: info, category: production_readiness, description: "3 nice-to-have items (friendlier =1e3 error message, devDependency audit refresh, stale tech-stack.md wording)", fixable: true}
   fixes_applied: []
-  decisions_made: []
+  decisions_made:
+    - {decision: "Proceed as-is at Phase 11 exit gate", rationale: "no critical issues; all warnings are non-code-fixable process/deployment concerns; all info items are optional"}
   reverify_count: 0
