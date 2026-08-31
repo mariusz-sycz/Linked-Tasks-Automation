@@ -5,7 +5,7 @@
     "version": "1.3.1",
     "name": "Linked Tasks Automation Test",
     "description": "Add linked tasks from pre-defined templates with a single click.",
-    "public": false,
+    "public": true,
     "publisher": "SyczMariusz",
     "repository": {
         "type": "git",
